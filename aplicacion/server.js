@@ -1,8 +1,10 @@
 const express = require('express');
 const { Pool } = require('pg');
+const cors = require('cors');
+const authRoutes = require('./routes/auth');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Configuración de base de datos
 const pool = new Pool({
@@ -15,7 +17,12 @@ const pool = new Pool({
 });
 
 // Middleware
+app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
+
+// Rutas de autenticación
+app.use('/api/auth', authRoutes);
 
 // Función de verificación de base de datos
 const verifyDatabase = async () => {
