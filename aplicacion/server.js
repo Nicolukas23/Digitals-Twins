@@ -1,17 +1,21 @@
 const express = require('express');
 const { Pool } = require('pg');
+// >> 1. AGREGA ESTA LÍNEA PARA CARGAR LAS VARIABLES DEL ARCHIVO .env
+require('dotenv').config(); 
 
 const app = express();
 const PORT = 3000;
 
-// Configuración de base de datos
+// >> 2. CONFIGURACIÓN DE BASE DE DATOS MODIFICADA PARA USAR .env
 const pool = new Pool({
-  host: 'localhost',
-  port: 5432,
-  database: 'gemelos_digitales',
-  user: process.env.USER,
-  password: '',
-  max: 20,
+  host: process.env.PGHOST,          // Toma db.mgvckmnfovfspimj.supabase.co
+  port: process.env.PGPORT,          // Toma 5432
+  database: process.env.PGDATABASE,  // Toma postgres
+  user: process.env.PGUSER,          // Toma postgres
+  password: process.env.PGPASSWORD,  // Toma JeisonCat321 (o tu clave actual)
+  max: 20,
+  // OPCIONAL: Agrega esto si la conexión segura falla
+  // ssl: { rejectUnauthorized: false }
 });
 
 // Middleware
@@ -64,6 +68,52 @@ app.get('/api/tenderos', async (req, res) => {
     });
   }
 });
+// Ruta para obtener productos
+
+// Ruta para obtener productos
+app.get('/api/productos', async (req, res) => {
+    try {
+        // La consulta SQL selecciona todos los campos relevantes de la tabla productos
+        const result = await pool.query(`
+            SELECT 
+                id, sku, nombre, descripcion, categoria, precio_base, created_at, updated_at
+            FROM 
+                productos 
+            WHERE 
+                activo = true 
+            LIMIT 10
+        `);
+        
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rows.length
+        });
+    } catch (error) {
+        // Manejo de errores si la conexión o la consulta fallan
+        res.status(500).json({ 
+            success: false,
+            error: error.message 
+        });
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Ruta principal - Dashboard
 app.get('/', (req, res) => {
@@ -208,5 +258,6 @@ app.listen(PORT, () => {
   console.log('🌐 Servidor: http://localhost:3000');
   console.log('📊 Health:   http://localhost:3000/health');
   console.log('🏪 Tenderos: http://localhost:3000/api/tenderos');
+  console.log('📦 Productos: http://localhost:3000/api/productos');
   console.log('⏰ Iniciado: ' + new Date().toLocaleString());
 });
