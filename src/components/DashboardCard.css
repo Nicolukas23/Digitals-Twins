@@ -1,0 +1,5 @@
+/* para que el link no quite el estilo ni el subrayado */
+.link-card {
+  text-decoration: none;
+  color: inherit;
+}
