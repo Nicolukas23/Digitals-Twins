@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  postgresql:
+    image: postgis/postgis:15-3.3
+    container_name: geodb-gemelos
+    environment:
+      POSTGRES_DB: gemelos_digitales
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../base-datos/esquema:/docker-entrypoint-initdb.d
+    networks:
+      - gemelos-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis-gemelos
+    ports:
+      - "6379:6379"
+    networks:
+      - gemelos-network
+
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: app-gemelos
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgresql
+      - DB_PORT=5432
+      - DB_NAME=gemelos_digitales
+      - DB_USER=admin
+      - DB_PASS=admin123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgresql
+      - redis
+    networks:
+      - gemelos-network
+
+volumes:
+  postgres_data:
+
+networks:
+  gemones-network:
+    driver: bridge
