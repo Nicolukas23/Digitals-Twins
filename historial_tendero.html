@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historial de Compras - Tendero</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/dist/umd/supabase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .visita { 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px; 
+            background: #f9f9f9; 
+        }
+        .resumen { 
+            background: #e8f4fd; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+        }
+        .btn { 
+            padding: 10px 15px; 
+            margin: 5px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 5px; 
+            font-size: 14px;
+        }
+        .btn-pdf { 
+            background-color: #dc3545; 
+            color: white; 
+        }
+        .btn-primary { 
+            background-color: #007bff; 
+            color: white; 
+        }
+        .item-lista { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 5px 0; 
+            border-bottom: 1px solid #eee; 
+        }
+        .stats { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px; 
+            margin: 20px 0; 
+        }
+        .stat-card { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 5px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .loading { 
+            text-align: center; 
+            padding: 20px; 
+            color: #666; 
+        }
+        .error { 
+            background: #ffe6e6; 
+            color: #d63031; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 10px 0;
+        }
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0;
+        }
+        .warning { 
+            background: #fff3cd; 
+            color: #856404; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0;
+        }
+        .real-time-badge {
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Historial de Compras - Sistema Gemelos Digitales 
+            <span class="real-time-badge" id="realTimeBadge" style="display: none;">Tiempo Real</span>
+        </h1>
+        
+        <div id="connectionStatus" class="loading">Conectando con Supabase...</div>
+        <div id="functionStatus" class="warning" style="display: none;">
+            ⚠️ Las funciones de resumen no están disponibles. Usando cálculo local.
+        </div>
+        
+        <div class="resumen" id="resumen">
+            <div class="loading">Cargando resumen...</div>
+        </div>
+        
+        <div class="filtros">
+            <button class="btn btn-primary" onclick="cargarHistorial(1)">Tienda La Esquina</button>
+            <button class="btn btn-primary" onclick="cargarHistorial(2)">Mini Market Central</button>
+            <button class="btn btn-primary" onclick="cargarHistorial(3)">Abastos Medellín</button>
+            <button class="btn btn-pdf" onclick="generarPDF()" id="btnPdf">📄 Exportar a PDF</button>
+            <button class="btn btn-primary" onclick="recargarManual()" id="btnRecargar">🔄 Recargar</button>
+        </div>
+        
+        <div id="historial">
+            <div class="loading">Selecciona un tendero para ver su historial</div>
+        </div>
+    </div>
+
+    <script>
+        // =============================================
+        // CONFIGURACIÓN DE SUPABASE
+        // =============================================
+        
+        const SUPABASE_URL = 'https://mgvckmnfovfsphbepimj.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ndmNrbW5mb3Zmc3BoYmVwaW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwODc5NjQsImV4cCI6MjA3NTY2Mzk2NH0.5t-UJ1dDCWLwijRPKjnKSxDBJSnfJp09lFMCWJb6YGI';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let historialData = [];
+        let tenderoActual = null;
+        let funcionesDisponibles = false;
+
+        // =============================================
+        // SUSCRIPCIONES EN TIEMPO REAL
+        // =============================================
+
+        function suscribirCambiosEnTiempoReal() {
+            // Mostrar badge de tiempo real
+            document.getElementById('realTimeBadge').style.display = 'inline';
+
+            // Suscripción a cambios en la tabla ventas
+            const subscriptionVentas = supabase
+                .channel('cambios-ventas')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*', // Escuchar INSERT, UPDATE, DELETE
+                        schema: 'public',
+                        table: 'ventas'
+                    },
+                    (payload) => {
+                        console.log('Cambio en ventas:', payload);
+                        mostrarNotificacion('Nuevos datos de ventas recibidos');
+                        if (tenderoActual) {
+                            cargarHistorial(tenderoActual);
+                        }
+                    }
+                )
+                .subscribe();
+
+            // Suscripción a cambios en la tabla visitas_vendedor
+            const subscriptionVisitas = supabase
+                .channel('cambios-visitas')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'visitas_vendedor'
+                    },
+                    (payload) => {
+                        console.log('Cambio en visitas:', payload);
+                        mostrarNotificacion('Nuevos datos de visitas recibidos');
+                        if (tenderoActual) {
+                            cargarHistorial(tenderoActual);
+                        }
+                    }
+                )
+                .subscribe();
+
+            return [subscriptionVentas, subscriptionVisitas];
+        }
+
+        function mostrarNotificacion(mensaje) {
+            // Crear una notificación temporal
+            const notificacion = document.createElement('div');
+            notificacion.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #28a745;
+                color: white;
+                padding: 15px;
+                border-radius: 5px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 1000;
+                font-size: 14px;
+            `;
+            notificacion.textContent = mensaje;
+            document.body.appendChild(notificacion);
+
+            // Remover después de 3 segundos
+            setTimeout(() => {
+                document.body.removeChild(notificacion);
+            }, 3000);
+        }
+
+        function recargarManual() {
+            if (tenderoActual) {
+                cargarHistorial(tenderoActual);
+                mostrarNotificacion('Recargando datos...');
+            }
+        }
+
+        // =============================================
+        // FUNCIONES PRINCIPALES
+        // =============================================
+
+        async function verificarConexion() {
+            const statusElement = document.getElementById('connectionStatus');
+            
+            try {
+                statusElement.innerHTML = '🔍 Verificando conexión con Supabase...';
+                
+                const { data, error } = await supabase
+                    .from('tenderos')
+                    .select('count')
+                    .limit(1);
+                
+                if (error) {
+                    throw new Error(`Error de conexión: ${error.message}`);
+                }
+                
+                statusElement.innerHTML = '✅ Conectado a Supabase correctamente';
+                statusElement.className = 'success';
+                
+            } catch (error) {
+                statusElement.innerHTML = `❌ Error: ${error.message}`;
+                statusElement.className = 'error';
+                console.error('Error de conexión:', error);
+            }
+        }
+
+        async function verificarFunciones() {
+            try {
+                const { data, error } = await supabase
+                    .rpc('obtener_resumen_compras_tendero', { tendero_id_param: 1 });
+                
+                if (!error && data) {
+                    funcionesDisponibles = true;
+                    document.getElementById('functionStatus').style.display = 'none';
+                    console.log('✅ Funciones de PostgreSQL disponibles');
+                } else {
+                    throw new Error('Funciones no disponibles');
+                }
+            } catch (error) {
+                funcionesDisponibles = false;
+                document.getElementById('functionStatus').style.display = 'block';
+                console.log('⚠️ Usando cálculo local para resumen');
+            }
+        }
+
+        function calcularResumenLocal(data) {
+            if (!data || data.length === 0) {
+                return {
+                    total_compras: 0,
+                    total_visitas: 0,
+                    primer_compra: null,
+                    ultima_compra: null,
+                    producto_mas_comprado: 'N/A',
+                    total_productos_diferentes: 0
+                };
+            }
+
+            const visitas = {};
+            const productosCount = {};
+            let totalCompras = 0;
+            let fechas = [];
+
+            data.forEach(venta => {
+                totalCompras += parseFloat(venta.total || 0);
+                
+                if (!visitas[venta.visita_id]) {
+                    visitas[venta.visita_id] = true;
+                }
+                
+                if (!productosCount[venta.producto_nombre]) {
+                    productosCount[venta.producto_nombre] = 0;
+                }
+                productosCount[venta.producto_nombre] += venta.cantidad;
+                
+                fechas.push(new Date(venta.fecha_visita));
+            });
+
+            let productoMasComprado = 'N/A';
+            let maxCantidad = 0;
+            Object.keys(productosCount).forEach(producto => {
+                if (productosCount[producto] > maxCantidad) {
+                    maxCantidad = productosCount[producto];
+                    productoMasComprado = producto;
+                }
+            });
+
+            fechas.sort((a, b) => a - b);
+
+            return {
+                total_compras: totalCompras,
+                total_visitas: Object.keys(visitas).length,
+                primer_compra: fechas.length > 0 ? fechas[0].toISOString().split('T')[0] : null,
+                ultima_compra: fechas.length > 0 ? fechas[fechas.length - 1].toISOString().split('T')[0] : null,
+                producto_mas_comprado: productoMasComprado,
+                total_productos_diferentes: Object.keys(productosCount).length
+            };
+        }
+
+        async function cargarHistorial(tenderoId = 1) {
+            tenderoActual = tenderoId;
+            
+            try {
+                document.getElementById('historial').innerHTML = '<div class="loading">Cargando historial...</div>';
+                document.getElementById('resumen').innerHTML = '<div class="loading">Cargando resumen...</div>';
+
+                console.log(`Cargando historial para tendero: ${tenderoId}`);
+
+                const { data: historial, error: errorHistorial } = await supabase
+                    .from('historial_compras')
+                    .select('*')
+                    .eq('tendero_id', tenderoId)
+                    .order('fecha_visita', { ascending: false });
+
+                if (errorHistorial) {
+                    throw new Error(`Error al cargar historial: ${errorHistorial.message}`);
+                }
+
+                console.log('Historial recibido:', historial);
+                historialData = historial || [];
+
+                let resumen;
+                if (funcionesDisponibles) {
+                    try {
+                        const { data: resumenData, error: errorResumen } = await supabase
+                            .rpc('obtener_resumen_compras_tendero', { tendero_id_param: tenderoId });
+
+                        if (!errorResumen && resumenData && resumenData.length > 0) {
+                            resumen = resumenData[0];
+                            console.log('Resumen obtenido de la función BD:', resumen);
+                        } else {
+                            throw new Error('Función no disponible');
+                        }
+                    } catch (error) {
+                        console.log('Fallando a cálculo local:', error.message);
+                        resumen = calcularResumenLocal(historialData);
+                    }
+                } else {
+                    console.log('Usando cálculo local para resumen');
+                    resumen = calcularResumenLocal(historialData);
+                }
+
+                mostrarResumen(resumen);
+                mostrarHistorial(historialData);
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('historial').innerHTML = 
+                    `<div class="error">Error: ${error.message}</div>`;
+                document.getElementById('resumen').innerHTML = 
+                    `<div class="error">No se pudo cargar el resumen</div>`;
+            }
+        }
+
+        function mostrarResumen(resumen) {
+            const contenedor = document.getElementById('resumen');
+            
+            if (!resumen) {
+                contenedor.innerHTML = '<div class="error">No hay datos de resumen disponibles</div>';
+                return;
+            }
+            
+            contenedor.innerHTML = `
+                <h2>Resumen de Compras</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <h3>Total Gastado</h3>
+                        <p style="font-size: 24px; color: #28a745;">$${(resumen.total_compras || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Visitas</h3>
+                        <p style="font-size: 24px; color: #007bff;">${resumen.total_visitas || 0}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Producto Más Comprado</h3>
+                        <p style="font-size: 18px;">${resumen.producto_mas_comprado || 'N/A'}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Última Compra</h3>
+                        <p style="font-size: 16px;">${resumen.ultima_compra || 'N/A'}</p>
+                    </div>
+                </div>
+                ${!funcionesDisponibles ? '<p><small>⚠️ Resumen calculado localmente</small></p>' : ''}
+            `;
+        }
+
+        function mostrarHistorial(data) {
+            const contenedor = document.getElementById('historial');
+            
+            if (!data || data.length === 0) {
+                contenedor.innerHTML = '<div class="error">No hay compras registradas para este tendero.</div>';
+                return;
+            }
+            
+            const visitas = {};
+            data.forEach(venta => {
+                if (!visitas[venta.visita_id]) {
+                    visitas[venta.visita_id] = {
+                        fecha_visita: venta.fecha_visita,
+                        vendedor_nombre: venta.vendedor_nombre,
+                        vendedor_codigo: venta.vendedor_codigo,
+                        items: []
+                    };
+                }
+                visitas[venta.visita_id].items.push(venta);
+            });
+            
+            contenedor.innerHTML = Object.keys(visitas).map(visitaId => {
+                const visita = visitas[visitaId];
+                const totalVisita = visita.items.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+                
+                return `
+                <div class="visita">
+                    <h3>📅 Visita del ${visita.fecha_visita}</h3>
+                    <p><strong>Vendedor:</strong> ${visita.vendedor_nombre} (${visita.vendedor_codigo})</p>
+                    <p><strong>Total de la visita:</strong> $${totalVisita.toLocaleString()}</p>
+                    <h4>Productos comprados:</h4>
+                    <div>
+                        ${visita.items.map(item => `
+                            <div class="item-lista">
+                                <span>${item.cantidad}x ${item.producto_nombre} (${item.producto_categoria})</span>
+                                <span>$${(item.total || 0).toLocaleString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function generarPDF() {
+            if (!historialData || historialData.length === 0) {
+                alert('No hay datos para exportar. Primero carga el historial de un tendero.');
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                doc.setFontSize(20);
+                doc.text('Historial de Compras - Sistema Gemelos Digitales', 20, 20);
+                
+                if (historialData.length > 0) {
+                    doc.setFontSize(12);
+                    doc.text(`Tendero: ${historialData[0].tendero_nombre || 'N/A'}`, 20, 40);
+                    doc.text(`Dirección: ${historialData[0].tendero_direccion || 'N/A'}`, 20, 50);
+                    doc.text(`Fecha de generación: ${new Date().toLocaleDateString()}`, 20, 60);
+                }
+                
+                let y = 80;
+                
+                const visitas = {};
+                historialData.forEach(venta => {
+                    if (!visitas[venta.visita_id]) {
+                        visitas[venta.visita_id] = {
+                            fecha_visita: venta.fecha_visita,
+                            vendedor_nombre: venta.vendedor_nombre,
+                            items: []
+                        };
+                    }
+                    visitas[venta.visita_id].items.push(venta);
+                });
+                
+                const tableData = [];
+                Object.keys(visitas).forEach(visitaId => {
+                    const visita = visitas[visitaId];
+                    const totalVisita = visita.items.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+                    
+                    tableData.push([
+                        visitaId,
+                        visita.fecha_visita,
+                        visita.vendedor_nombre,
+                        `$${totalVisita.toLocaleString()}`,
+                        visita.items.length
+                    ]);
+                });
+                
+                doc.autoTable({
+                    startY: y,
+                    head: [['Visita ID', 'Fecha', 'Vendedor', 'Total', 'Productos']],
+                    body: tableData,
+                    styles: { fontSize: 10 }
+                });
+                
+                const nombreArchivo = `historial_compras_${new Date().toISOString().split('T')[0]}.pdf`;
+                doc.save(nombreArchivo);
+                
+                alert(`PDF exportado correctamente: ${nombreArchivo}`);
+                
+            } catch (error) {
+                alert('Error al generar el PDF: ' + error.message);
+                console.error('Error PDF:', error);
+            }
+        }
+
+        // =============================================
+        // INICIALIZACIÓN
+        // =============================================
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Página cargada, iniciando...');
+            
+            // 1. Verificar conexión con Supabase
+            await verificarConexion();
+            
+            // 2. Verificar si las funciones están disponibles
+            await verificarFunciones();
+            
+            // 3. Iniciar suscripciones para cambios en tiempo real
+            suscribirCambiosEnTiempoReal();
+            
+            // 4. Cargar datos del primer tendero
+            setTimeout(() => {
+                cargarHistorial(1);
+            }, 500);
+        });
+    </script>
+</body>
+</html>
