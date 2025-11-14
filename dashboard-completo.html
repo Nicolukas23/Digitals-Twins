@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemelos Digitales - Dashboard Completo</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .main-container {
+            display: none;
+        }
+
+        .main-container.active {
+            display: block;
+        }
+
+        /* Login Styles */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Dashboard Navigation */
+        .navbar {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h1 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .navbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-logout:hover {
+            background: #d32f2f;
+        }
+
+        /* Tabs */
+        .tabs {
+            background: white;
+            padding: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 0;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            border: none;
+            background: #f5f5f5;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            background: #e8e8e8;
+            color: #333;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Map Container */
+        #map {
+            height: calc(100vh - 200px);
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .btn-sm {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+        }
+
+        .btn-info {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #1976d2;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        table th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #666;
+        }
+
+        table tr:hover {
+            background: #fafafa;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h1>🌐 Gemelos Digitales</h1>
+            
+            <!-- Login Form -->
+            <form id="loginForm" onsubmit="login(event)">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" placeholder="usuario@ejemplo.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <a href="#" onclick="showRegisterForm(event)" style="color: #667eea; text-decoration: none; font-size: 14px; margin-right: 15px;">Registrarme</a>
+                    <a href="#" onclick="showRecoverForm(event)" style="color: #667eea; text-decoration: none; font-size: 14px;">Olvidé mi contraseña</a>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" onsubmit="register(event)" style="display: none;">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #667eea;">Crear cuenta</h2>
+                <div class="form-group">
+                    <label>Nombre completo</label>
+                    <input type="text" id="registerName" placeholder="Juan Pérez" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="registerEmail" placeholder="usuario@ejemplo.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="registerPassword" placeholder="••••••••" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Confirmar contraseña</label>
+                    <input type="password" id="registerPasswordConfirm" placeholder="••••••••" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary">Crear cuenta</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <a href="#" onclick="showLoginForm(event)" style="color: #667eea; text-decoration: none; font-size: 14px;">Ya tengo cuenta</a>
+                </div>
+            </form>
+
+            <!-- Recover Password Form -->
+            <form id="recoverForm" onsubmit="recoverPassword(event)" style="display: none;">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #667eea;">Recuperar contraseña</h2>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="recoverEmail" placeholder="usuario@ejemplo.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Nueva contraseña</label>
+                    <input type="password" id="recoverPassword" placeholder="••••••••" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Confirmar nueva contraseña</label>
+                    <input type="password" id="recoverPasswordConfirm" placeholder="••••••••" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary">Restablecer contraseña</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <a href="#" onclick="showLoginForm(event)" style="color: #667eea; text-decoration: none; font-size: 14px;">Volver al inicio de sesión</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="mainDashboard" class="main-container">
+        <div class="navbar">
+            <h1>🌐 Gemelos Digitales</h1>
+            <div class="user-info">
+                <span id="userEmail"></span>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showTab('mapa')">📍 Mapa de Tenderos</button>
+                <button class="tab-btn" onclick="showTab('dashboard')">📊 Dashboard</button>
+                <button class="tab-btn" onclick="showTab('productos')">📦 Productos</button>
+                <button class="tab-btn" onclick="showTab('tenderos')">👥 Tenderos</button>
+                <button class="tab-btn" onclick="showTab('vendedores')">🚗 Vendedores</button>
+                <button class="tab-btn" onclick="showTab('stock')">📦 Stock</button>
+                <button class="tab-btn" onclick="showTab('consumo')">📊 Consumo</button>
+                <button class="tab-btn" onclick="showTab('historial')">📋 Historial</button>
+                <button class="tab-btn" onclick="showTab('alertas')">🔔 Alertas</button>
+                <button class="tab-btn" onclick="showTab('checkin')">✅ Check-in</button>
+            </div>
+
+            <!-- Tab: Mapa -->
+            <div id="tab-mapa" class="tab-content active">
+                <div id="map"></div>
+            </div>
+
+            <!-- Tab: Dashboard -->
+            <div id="tab-dashboard" class="tab-content">
+                <!-- KPIs Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <h3 style="color: #667eea; font-size: 14px;">� Ventas Totales</h3>
+                        <p id="kpi-ventas-totales" style="font-size: 32px; font-weight: bold; margin: 10px 0;">$0</p>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <h3 style="color: #667eea; font-size: 14px;">📍 Visitas Realizadas</h3>
+                        <p id="kpi-visitas-totales" style="font-size: 32px; font-weight: bold; margin: 10px 0;">0</p>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <h3 style="color: #667eea; font-size: 14px;">🏪 Tenderos Activos</h3>
+                        <p id="kpi-tenderos-activos" style="font-size: 32px; font-weight: bold; margin: 10px 0;">0</p>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <h3 style="color: #667eea; font-size: 14px;">📊 Promedio por Visita</h3>
+                        <p id="kpi-promedio-visita" style="font-size: 32px; font-weight: bold; margin: 10px 0;">$0</p>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="cards-grid">
+                    <div class="card">
+                        <h2>📊 Ventas por Zona</h2>
+                        <canvas id="chartVentasZona" style="max-height: 300px;"></canvas>
+                    </div>
+                    <div class="card">
+                        <h2>👥 Comparación de Vendedores</h2>
+                        <canvas id="chartVendedores" style="max-height: 300px;"></canvas>
+                        <div id="vendedoresContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Productos -->
+            <div id="tab-productos" class="tab-content">
+                <div class="card">
+                    <h2>📦 Productos</h2>
+                    <div class="card-actions">
+                        <button class="btn-sm btn-info" onclick="loadProductos()">Cargar Productos</button>
+                        <button class="btn-sm btn-success" onclick="showCreateProducto()">Crear Producto</button>
+                        <button class="btn-sm btn-success" onclick="showAsignarProducto()">Asignar a Tendero</button>
+                    </div>
+                    <div id="productosContent"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Tenderos -->
+            <div id="tab-tenderos" class="tab-content">
+                <div class="card">
+                    <h2>👥 Tenderos</h2>
+                    <button class="btn-sm btn-info" onclick="loadTenderos()">Cargar Tenderos</button>
+                    <div id="tenderosContent"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Vendedores (GM-9) -->
+            <div id="tab-vendedores" class="tab-content">
+                <div class="card">
+                    <h2>🚗 Gestión de Vendedores</h2>
+                    <div class="card-actions">
+                        <button class="btn-sm btn-info" onclick="loadVendedores()">Cargar Vendedores</button>
+                        <button class="btn-sm btn-success" onclick="showCreateVendedor()">Crear Vendedor</button>
+                    </div>
+                    <div id="vendedoresListContent"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Alertas -->
+            <div id="tab-alertas" class="tab-content">
+                <div class="card">
+                    <h2>🔔 Alertas de Stock</h2>
+                    <button class="btn-sm btn-info" onclick="loadAlertas()">Cargar Alertas</button>
+                    <div id="alertasContent"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Historial -->
+            <div id="tab-historial" class="tab-content">
+                <div class="card">
+                    <h2>📋 Historial de Compras</h2>
+                    <div class="card-actions">
+                        <input type="number" id="tenderoIdHistorial" placeholder="ID del Tendero" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; width: 200px;">
+                        <button class="btn-sm btn-info" onclick="loadHistorial()">Consultar Historial</button>
+                        <button class="btn-sm btn-success" onclick="exportarHistorialPDF()" id="btnExportPDF" style="display: none;">📄 Exportar PDF</button>
+                    </div>
+                    <div id="historialContent"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Check-in -->
+            <div id="tab-checkin" class="tab-content">
+                <div class="card">
+                    <h2>✅ Simular Check-in</h2>
+                    <button class="btn-sm btn-success" onclick="hacerCheckin()">Hacer Check-in</button>
+                    <div id="checkinResult"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Stock -->
+            <div id="tab-stock" class="tab-content">
+                <div class="card">
+                    <h2>📦 Gestión de Stock e Inventario</h2>
+                    
+                    <!-- Formulario: Registrar Stock Inicial -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">➕ Registrar Stock Inicial</h3>
+                        <form id="formStock" onsubmit="registrarStock(event)">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Tendero:</label>
+                                    <select id="stockTenderoId" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="">Seleccionar...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Producto:</label>
+                                    <select id="stockProductoId" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="">Seleccionar...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Stock Inicial:</label>
+                                    <input type="number" id="stockInicial" required min="0" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Stock Mínimo:</label>
+                                    <input type="number" id="stockMinimo" value="10" min="0" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Stock Máximo:</label>
+                                    <input type="number" id="stockMaximo" value="100" min="0" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-sm btn-success" style="padding: 10px 30px;">✅ Registrar Stock</button>
+                        </form>
+                    </div>
+
+                    <!-- Tabla: Inventario por Tendero -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3>📋 Inventario por Tendero</h3>
+                            <button class="btn-sm" onclick="loadInventario()">🔄 Actualizar</button>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table id="tablaInventario" style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: #667eea; color: white;">
+                                    <tr>
+                                        <th style="padding: 12px; text-align: left;">Tendero</th>
+                                        <th style="padding: 12px; text-align: left;">Producto</th>
+                                        <th style="padding: 12px; text-align: center;">Stock Actual</th>
+                                        <th style="padding: 12px; text-align: center;">Mínimo</th>
+                                        <th style="padding: 12px; text-align: center;">Máximo</th>
+                                        <th style="padding: 12px; text-align: center;">Estado</th>
+                                        <th style="padding: 12px; text-align: center;">Última Act.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventarioBody">
+                                    <tr>
+                                        <td colspan="7" style="text-align: center; padding: 20px; color: #999;">Cargando inventario...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Consumo -->
+            <div id="tab-consumo" class="tab-content">
+                <div class="card">
+                    <h2>📊 Historial de Consumo</h2>
+                    
+                    <!-- Filtros -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Tendero:</label>
+                                <select id="filtroTenderoConsumo" onchange="loadHistorialConsumo()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <option value="">Todos los tenderos</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Producto:</label>
+                                <select id="filtroProductoConsumo" onchange="loadHistorialConsumo()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <option value="">Todos los productos</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: flex-end;">
+                                <button class="btn-sm" onclick="loadHistorialConsumo()" style="width: 100%; padding: 10px;">🔍 Filtrar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resumen de Consumo -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Compras</div>
+                            <div id="consumoTotalCompras" style="font-size: 32px; font-weight: bold; margin-top: 10px;">-</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Gastado</div>
+                            <div id="consumoTotalGastado" style="font-size: 32px; font-weight: bold; margin-top: 10px;">-</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 14px; opacity: 0.9;">Productos Diferentes</div>
+                            <div id="consumoProductosDiferentes" style="font-size: 32px; font-weight: bold; margin-top: 10px;">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Historial -->
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="background: #667eea; color: white;">
+                                <tr>
+                                    <th style="padding: 12px; text-align: left;">Fecha</th>
+                                    <th style="padding: 12px; text-align: left;">Tendero</th>
+                                    <th style="padding: 12px; text-align: left;">Producto</th>
+                                    <th style="padding: 12px; text-align: center;">Cantidad</th>
+                                    <th style="padding: 12px; text-align: right;">Precio Unit.</th>
+                                    <th style="padding: 12px; text-align: right;">Total</th>
+                                    <th style="padding: 12px; text-align: left;">Vendedor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historialConsumoBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 20px; color: #999;">Selecciona un tendero para ver su historial</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API_URL = 'http://localhost:3000';
+        let token = localStorage.getItem('token');
+        let map = null;
+        let markers = [];
+
+        // Check if user is logged in
+        if (token) {
+            showDashboard();
+        }
+
+        function showDashboard() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainDashboard').classList.add('active');
+            document.getElementById('userEmail').textContent = localStorage.getItem('userEmail') || 'Usuario';
+            initMap();
+            loadTenderosEnMapa();
+        }
+
+        // ========== FORMS NAVIGATION ==========
+        function showLoginForm(event) {
+            event.preventDefault();
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('recoverForm').style.display = 'none';
+        }
+
+        function showRegisterForm(event) {
+            event.preventDefault();
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('recoverForm').style.display = 'none';
+        }
+
+        function showRecoverForm(event) {
+            event.preventDefault();
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('recoverForm').style.display = 'block';
+        }
+
+        // ========== AUTHENTICATION ==========
+        async function login(event) {
+            event.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                console.log('Login response:', data);
+
+                if (response.ok && data.data) {
+                    token = data.data.token;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('userEmail', email);
+                    showDashboard();
+                } else {
+                    alert('❌ Error: ' + (data.message || data.error || 'Error de autenticación'));
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function register(event) {
+            event.preventDefault();
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+
+            if (password !== passwordConfirm) {
+                alert('❌ Las contraseñas no coinciden');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        nombre: name,
+                        email: email, 
+                        password: password,
+                        rol: 'usuario'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.');
+                    showLoginForm(event);
+                    document.getElementById('loginEmail').value = email;
+                } else {
+                    alert('❌ Error: ' + (data.message || data.error || 'Error al crear cuenta'));
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function recoverPassword(event) {
+            event.preventDefault();
+            const email = document.getElementById('recoverEmail').value;
+            const newPassword = document.getElementById('recoverPassword').value;
+            const passwordConfirm = document.getElementById('recoverPasswordConfirm').value;
+
+            if (newPassword !== passwordConfirm) {
+                alert('❌ Las contraseñas no coinciden');
+                return;
+            }
+
+            try {
+                // Primero verificar si el usuario existe
+                const response = await fetch(`${API_URL}/api/auth/recover-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: email,
+                        new_password: newPassword
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Contraseña restablecida exitosamente. Ya puedes iniciar sesión.');
+                    showLoginForm(event);
+                    document.getElementById('loginEmail').value = email;
+                } else {
+                    alert('❌ Error: ' + (data.message || data.error || 'No se pudo restablecer la contraseña'));
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userEmail');
+            token = null;
+            location.reload();
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById('tab-' + tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Initialize map if mapa tab
+            if (tabName === 'mapa' && !map) {
+                initMap();
+            }
+
+            // Load dashboard data if dashboard tab
+            if (tabName === 'dashboard') {
+                loadDashboardCompleto();
+            }
+
+            // Load stock data if stock tab
+            if (tabName === 'stock') {
+                loadStockSelects();
+                loadInventario();
+            }
+
+            // Load consumo data if consumo tab
+            if (tabName === 'consumo') {
+                loadStockSelects();
+            }
+        }
+
+        // ========== MAPA ==========
+        function initMap() {
+            if (map) return;
+
+            map = L.map('map').setView([4.5709, -74.2973], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        async function loadTenderosEnMapa() {
+            try {
+                const response = await fetch(`${API_URL}/api/tenderos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                console.log('Tenderos Response:', data);
+
+                if (response.ok && data.data) {
+                    // Clear existing markers
+                    markers.forEach(m => map.removeLayer(m));
+                    markers = [];
+
+                    let markersAdded = 0;
+                    data.data.forEach(tendero => {
+                        console.log('Tendero:', tendero.nombre, 'Lat:', tendero.latitud, 'Lng:', tendero.longitud);
+                        if (tendero.latitud && tendero.longitud) {
+                            const lat = parseFloat(tendero.latitud);
+                            const lng = parseFloat(tendero.longitud);
+                            
+                            if (!isNaN(lat) && !isNaN(lng)) {
+                                const marker = L.marker([lat, lng])
+                                    .bindPopup(`
+                                        <b>${tendero.nombre}</b><br>
+                                        ${tendero.direccion || 'Sin dirección'}<br>
+                                        Teléfono: ${tendero.telefono || 'N/A'}<br>
+                                        Estado: ${tendero.activo ? 'Activo' : 'Inactivo'}
+                                    `)
+                                    .addTo(map);
+                                markers.push(marker);
+                                markersAdded++;
+                            }
+                        }
+                    });
+                    console.log(`Marcadores añadidos: ${markersAdded} de ${data.data.length} tenderos`);
+                } else {
+                    console.error('Error en response tenderos:', data);
+                }
+            } catch (error) {
+                console.error('Error cargando tenderos:', error);
+            }
+        }
+
+        // ========== DASHBOARD CON GRÁFICOS ==========
+        let chartVentasZona = null;
+        let chartVendedores = null;
+
+        async function loadDashboardCompleto() {
+            await Promise.all([
+                loadKPIs(),
+                loadVentasZona(),
+                loadComparacionVendedores()
+            ]);
+        }
+
+        async function loadKPIs() {
+            try {
+                // Cargar datos de zonas y vendedores
+                const [zonaRes, vendRes] = await Promise.all([
+                    fetch(`${API_URL}/api/dashboard/ventas-zona`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`${API_URL}/api/dashboard/comparacion-vendedores`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
+                const zonaData = await zonaRes.json();
+                const vendData = await vendRes.json();
+
+                if (zonaData.success && zonaData.data) {
+                    const totalVentas = zonaData.data.reduce((sum, z) => sum + parseFloat(z.total_ventas || 0), 0);
+                    const totalVisitas = zonaData.data.reduce((sum, z) => sum + parseInt(z.total_visitas || 0), 0);
+                    const totalTenderos = zonaData.data.reduce((sum, z) => sum + parseInt(z.total_tenderos || 0), 0);
+                    const promedio = totalVisitas > 0 ? totalVentas / totalVisitas : 0;
+
+                    document.getElementById('kpi-ventas-totales').textContent = `$${totalVentas.toFixed(2)}`;
+                    document.getElementById('kpi-visitas-totales').textContent = totalVisitas;
+                    document.getElementById('kpi-tenderos-activos').textContent = totalTenderos;
+                    document.getElementById('kpi-promedio-visita').textContent = `$${promedio.toFixed(2)}`;
+                }
+            } catch (error) {
+                console.error('Error cargando KPIs:', error);
+            }
+        }
+
+        async function loadVentasZona() {
+            try {
+                const response = await fetch(`${API_URL}/api/dashboard/ventas-zona`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                console.log('Ventas Zona Response:', data);
+
+                if (response.ok && data.data && data.data.length > 0) {
+                    const labels = data.data.map(v => `${v.zona_nombre} (${v.ciudad_nombre})`);
+                    const ventas = data.data.map(v => parseFloat(v.total_ventas || 0));
+                    const visitas = data.data.map(v => parseInt(v.total_visitas || 0));
+
+                    // Destruir gráfico anterior si existe
+                    if (chartVentasZona) {
+                        chartVentasZona.destroy();
+                    }
+
+                    // Crear nuevo gráfico
+                    const ctx = document.getElementById('chartVentasZona').getContext('2d');
+                    chartVentasZona = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Ventas ($)',
+                                data: ventas,
+                                backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                                borderColor: 'rgba(102, 126, 234, 1)',
+                                borderWidth: 2
+                            }, {
+                                label: 'Visitas',
+                                data: visitas,
+                                backgroundColor: 'rgba(118, 75, 162, 0.7)',
+                                borderColor: 'rgba(118, 75, 162, 1)',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                },
+                                title: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error en loadVentasZona:', error);
+            }
+        }
+
+        async function loadComparacionVendedores() {
+            try {
+                const response = await fetch(`${API_URL}/api/dashboard/comparacion-vendedores`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                console.log('Comparación Vendedores Response:', data);
+
+                if (response.ok && data.data && data.data.length > 0) {
+                    const labels = data.data.map(v => v.vendedor_nombre || 'N/A');
+                    const ventas = data.data.map(v => parseFloat(v.total_ventas || 0));
+                    const visitas = data.data.map(v => parseInt(v.total_visitas || 0));
+
+                    // Destruir gráfico anterior si existe
+                    if (chartVendedores) {
+                        chartVendedores.destroy();
+                    }
+
+                    // Crear nuevo gráfico
+                    const ctx = document.getElementById('chartVendedores').getContext('2d');
+                    chartVendedores = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Ventas ($)',
+                                data: ventas,
+                                backgroundColor: 'rgba(52, 211, 153, 0.7)',
+                                borderColor: 'rgba(52, 211, 153, 1)',
+                                borderWidth: 2,
+                                yAxisID: 'y'
+                            }, {
+                                label: 'Visitas',
+                                data: visitas,
+                                backgroundColor: 'rgba(251, 146, 60, 0.7)',
+                                borderColor: 'rgba(251, 146, 60, 1)',
+                                borderWidth: 2,
+                                yAxisID: 'y1'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                },
+                                title: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Ventas ($)'
+                                    }
+                                },
+                                y1: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'right',
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Visitas'
+                                    },
+                                    grid: {
+                                        drawOnChartArea: false
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error en loadComparacionVendedores:', error);
+            }
+        }
+
+        // ========== PRODUCTOS ==========
+        async function loadProductos() {
+            const content = document.getElementById('productosContent');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/productos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (data.data.length === 0) {
+                        content.innerHTML = '<p style="margin-top: 15px;">No hay productos</p>';
+                    } else {
+                        let html = '<table><tr><th>ID</th><th>SKU</th><th>Nombre</th><th>Precio</th><th>Categoría</th></tr>';
+                        data.data.forEach(p => {
+                            html += `<tr><td>${p.id}</td><td>${p.sku}</td><td>${p.nombre}</td><td>$${p.precio_base}</td><td>${p.categoria || 'N/A'}</td></tr>`;
+                        });
+                        html += '</table>';
+                        content.innerHTML = html;
+                    }
+                } else {
+                    content.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<p style="color: red;">Error de conexión</p>`;
+            }
+        }
+
+        function showCreateProducto() {
+            const sku = prompt('SKU del producto:');
+            const nombre = prompt('Nombre del producto:');
+            const precio = prompt('Precio base:');
+            
+            if (sku && nombre && precio) {
+                createProducto(sku, nombre, precio);
+            }
+        }
+
+        async function createProducto(sku, nombre, precio) {
+            try {
+                const response = await fetch(`${API_URL}/api/productos`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sku,
+                        nombre,
+                        categoria: 'General',
+                        precio_base: precio
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Producto creado exitosamente!');
+                    loadProductos();
+                } else {
+                    alert(`❌ Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        function showAsignarProducto() {
+            const tendero_id = prompt('ID del Tendero:');
+            const producto_id = prompt('ID del Producto:');
+            const stock_inicial = prompt('Stock Inicial:');
+            const stock_minimo = prompt('Stock Mínimo (alerta):');
+            const stock_maximo = prompt('Stock Máximo:');
+            
+            if (tendero_id && producto_id && stock_inicial) {
+                asignarProducto(tendero_id, producto_id, stock_inicial, stock_minimo, stock_maximo);
+            }
+        }
+
+        async function asignarProducto(tendero_id, producto_id, stock_inicial, stock_minimo, stock_maximo) {
+            try {
+                const response = await fetch(`${API_URL}/api/productos/asignar`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tendero_id,
+                        producto_id,
+                        stock_inicial,
+                        stock_minimo,
+                        stock_maximo
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ Producto asignado exitosamente!\n\nStock actual: ${data.data.stock_actual}\nStock mínimo: ${data.data.stock_minimo}`);
+                } else {
+                    alert(`❌ Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        // ========== TENDEROS ==========
+        async function loadTenderos() {
+            const content = document.getElementById('tenderosContent');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/tenderos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (data.data.length === 0) {
+                        content.innerHTML = '<p style="margin-top: 15px;">No hay tenderos</p>';
+                    } else {
+                        let html = '<table><tr><th>ID</th><th>Nombre</th><th>Identificación</th><th>Dirección</th><th>Estado</th></tr>';
+                        data.data.forEach(t => {
+                            html += `<tr><td>${t.id}</td><td>${t.nombre}</td><td>${t.identificacion || 'N/A'}</td><td>${t.direccion || 'N/A'}</td><td>${t.estado || 'Activo'}</td></tr>`;
+                        });
+                        html += '</table>';
+                        content.innerHTML = html;
+                    }
+                } else {
+                    content.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<p style="color: red;">Error de conexión</p>`;
+            }
+        }
+
+        // ========== ALERTAS ==========
+        async function loadAlertas() {
+            const content = document.getElementById('alertasContent');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/alertas`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (data.data.length === 0) {
+                        content.innerHTML = '<p style="margin-top: 15px;">✅ No hay alertas de stock bajo</p>';
+                    } else {
+                        let html = '<table><tr><th>Tendero</th><th>Producto</th><th>Stock Actual</th><th>Stock Mínimo</th></tr>';
+                        data.data.forEach(a => {
+                            html += `<tr><td>${a.tendero_nombre}</td><td>${a.producto_nombre}</td><td>${a.stock_actual}</td><td>${a.stock_minimo}</td></tr>`;
+                        });
+                        html += '</table>';
+                        content.innerHTML = html;
+                    }
+                } else {
+                    content.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<p style="color: red;">Error de conexión</p>`;
+            }
+        }
+
+        // ========== HISTORIAL DE COMPRAS ==========
+        let historialData = [];
+
+        async function loadHistorial() {
+            const tenderoId = document.getElementById('tenderoIdHistorial').value;
+            const content = document.getElementById('historialContent');
+            
+            if (!tenderoId) {
+                alert('❌ Por favor ingresa el ID del tendero');
+                return;
+            }
+
+            content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/historial/${tenderoId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                console.log('Historial Response:', data);
+
+                if (response.ok) {
+                    if (!data.data || data.data.length === 0) {
+                        content.innerHTML = '<p style="margin-top: 15px;">📋 No hay compras registradas para este tendero</p>';
+                        document.getElementById('btnExportPDF').style.display = 'none';
+                    } else {
+                        historialData = data.data;
+                        displayHistorial(data);
+                        document.getElementById('btnExportPDF').style.display = 'inline-block';
+                    }
+                } else {
+                    content.innerHTML = `<p style="color: red;">❌ Error: ${data.message || data.error || 'Error desconocido'}</p>`;
+                    document.getElementById('btnExportPDF').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error en loadHistorial:', error);
+                content.innerHTML = `<p style="color: red;">❌ Error de conexión: ${error.message}</p>`;
+                document.getElementById('btnExportPDF').style.display = 'none';
+            }
+        }
+
+        function displayHistorial(data) {
+            const content = document.getElementById('historialContent');
+            let html = `
+                <div style="margin: 20px 0; padding: 15px; background: #f0f7ff; border-radius: 8px;">
+                    <h3 style="margin: 0 0 10px 0; color: #667eea;">Resumen de Compras</h3>
+                    <p style="margin: 5px 0;"><strong>Total de compras:</strong> ${data.total_compras}</p>
+                    <p style="margin: 5px 0;"><strong>Total facturado:</strong> $${parseFloat(data.total_general).toLocaleString('es-CO')}</p>
+                </div>
+                <table>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>Producto</th>
+                        <th>SKU</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unit.</th>
+                        <th>Total</th>
+                        <th>Vendedor</th>
+                    </tr>`;
+            
+            data.data.forEach(compra => {
+                const fecha = new Date(compra.fecha_visita).toLocaleDateString('es-CO');
+                html += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td>${compra.hora_entrada || 'N/A'}</td>
+                        <td>${compra.producto_nombre}</td>
+                        <td>${compra.sku}</td>
+                        <td>${compra.cantidad}</td>
+                        <td>$${parseFloat(compra.precio_venta).toLocaleString('es-CO')}</td>
+                        <td style="font-weight: bold;">$${parseFloat(compra.total).toLocaleString('es-CO')}</td>
+                        <td>${compra.vendedor_nombre}</td>
+                    </tr>`;
+            });
+            
+            html += '</table>';
+            content.innerHTML = html;
+        }
+
+        function exportarHistorialPDF() {
+            if (historialData.length === 0) {
+                alert('❌ No hay datos para exportar');
+                return;
+            }
+
+            const tenderoId = document.getElementById('tenderoIdHistorial').value;
+            const fecha = new Date().toLocaleDateString('es-CO');
+            
+            // Calcular totales
+            const totalCompras = historialData.length;
+            const totalGeneral = historialData.reduce((sum, item) => sum + parseFloat(item.total), 0);
+
+            // Crear contenido HTML para el PDF
+            let pdfContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Historial de Compras - Tendero ${tenderoId}</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 40px; }
+        h1 { color: #667eea; text-align: center; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .summary { background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #667eea; color: white; padding: 12px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #ddd; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌐 Gemelos Digitales</h1>
+        <h2>Historial de Compras</h2>
+        <p>Tendero ID: ${tenderoId} | Fecha de reporte: ${fecha}</p>
+    </div>
+    
+    <div class="summary">
+        <h3>Resumen General</h3>
+        <p><strong>Total de compras:</strong> ${totalCompras}</p>
+        <p><strong>Total facturado:</strong> $${totalGeneral.toLocaleString('es-CO', {minimumFractionDigits: 2})}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Producto</th>
+                <th>SKU</th>
+                <th>Cantidad</th>
+                <th>Precio Unit.</th>
+                <th>Total</th>
+                <th>Vendedor</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+            historialData.forEach(compra => {
+                const fechaCompra = new Date(compra.fecha_visita).toLocaleDateString('es-CO');
+                pdfContent += `
+            <tr>
+                <td>${fechaCompra}</td>
+                <td>${compra.hora_entrada || 'N/A'}</td>
+                <td>${compra.producto_nombre}</td>
+                <td>${compra.sku}</td>
+                <td>${compra.cantidad}</td>
+                <td>$${parseFloat(compra.precio_venta).toLocaleString('es-CO')}</td>
+                <td><strong>$${parseFloat(compra.total).toLocaleString('es-CO')}</strong></td>
+                <td>${compra.vendedor_nombre}</td>
+            </tr>`;
+            });
+
+            pdfContent += `
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p>Documento generado automáticamente por Gemelos Digitales</p>
+        <p>${new Date().toLocaleString('es-CO')}</p>
+    </div>
+</body>
+</html>`;
+
+            // Crear ventana nueva para imprimir
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(pdfContent);
+            printWindow.document.close();
+            
+            // Esperar a que cargue y luego imprimir
+            printWindow.onload = function() {
+                printWindow.print();
+            };
+        }
+
+        // ========== GM-9: GESTIÓN DE VENDEDORES ==========
+        let zonasDisponibles = [];
+
+        async function loadVendedores() {
+            const content = document.getElementById('vendedoresListContent');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/vendedores`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                console.log('Vendedores Response:', data);
+
+                if (response.ok) {
+                    displayVendedores(data.data);
+                } else {
+                    content.innerHTML = `<p style="color: red;">❌ Error: ${data.message || data.error}</p>`;
+                }
+            } catch (error) {
+                console.error('Error en loadVendedores:', error);
+                content.innerHTML = `<p style="color: red;">❌ Error de conexión</p>`;
+            }
+        }
+
+        function displayVendedores(vendedores) {
+            const content = document.getElementById('vendedoresListContent');
+            
+            if (!vendedores || vendedores.length === 0) {
+                content.innerHTML = '<p style="margin-top: 15px;">No hay vendedores registrados</p>';
+                return;
+            }
+
+            let html = '<table style="margin-top: 15px;"><thead><tr>';
+            html += '<th>ID</th><th>Nombre</th><th>Código</th><th>Email</th><th>Teléfono</th>';
+            html += '<th>Zona Asignada</th><th>Ciudad</th><th>Estado</th><th>Acciones</th>';
+            html += '</tr></thead><tbody>';
+
+            vendedores.forEach(v => {
+                const estadoBadge = v.activo ? 
+                    '<span style="background: #10b981; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">Activo</span>' :
+                    '<span style="background: #ef4444; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">Inactivo</span>';
+                
+                html += `<tr>
+                    <td>${v.id}</td>
+                    <td>${v.nombre}</td>
+                    <td><strong>${v.codigo}</strong></td>
+                    <td>${v.email || '-'}</td>
+                    <td>${v.telefono || '-'}</td>
+                    <td>${v.zona_nombre || '<em>Sin asignar</em>'}</td>
+                    <td>${v.ciudad_nombre || '-'}</td>
+                    <td>${estadoBadge}</td>
+                    <td>
+                        <button class="btn-sm btn-primary" onclick="showAsignarZona(${v.id}, '${v.nombre}')">📍 Asignar Zona</button>
+                        <button class="btn-sm btn-warning" onclick="showEditVendedor(${v.id})">✏️ Editar</button>
+                        <button class="btn-sm btn-danger" onclick="deleteVendedor(${v.id}, '${v.nombre}')">🗑️ Eliminar</button>
+                    </td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        }
+
+        async function showCreateVendedor() {
+            const nombre = prompt('Nombre del vendedor:');
+            if (!nombre) return;
+
+            const codigo = prompt('Código del vendedor (ej: V003):');
+            if (!codigo) return;
+
+            const email = prompt('Email (opcional):');
+            const telefono = prompt('Teléfono (opcional):');
+
+            // Cargar zonas disponibles
+            await loadZonasForSelection();
+            
+            const zonasList = zonasDisponibles.map(z => `${z.id} - ${z.nombre} (${z.ciudad_nombre})`).join('\n');
+            const zona_id = prompt(`ID de la zona a asignar (opcional):\n\n${zonasList}`);
+
+            await createVendedor({
+                nombre,
+                codigo,
+                email: email || null,
+                telefono: telefono || null,
+                zona_asignada: zona_id ? parseInt(zona_id) : null
+            });
+        }
+
+        async function createVendedor(vendedorData) {
+            try {
+                const response = await fetch(`${API_URL}/api/vendedores`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(vendedorData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    loadVendedores();
+                } else {
+                    alert(`❌ Error: ${data.message || data.error}`);
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function showEditVendedor(id) {
+            const nombre = prompt('Nuevo nombre (dejar vacío para mantener):');
+            const email = prompt('Nuevo email (dejar vacío para mantener):');
+            const telefono = prompt('Nuevo teléfono (dejar vacío para mantener):');
+            
+            const updateData = {};
+            if (nombre) updateData.nombre = nombre;
+            if (email) updateData.email = email;
+            if (telefono) updateData.telefono = telefono;
+
+            if (Object.keys(updateData).length === 0) {
+                alert('No se realizaron cambios');
+                return;
+            }
+
+            await updateVendedor(id, updateData);
+        }
+
+        async function updateVendedor(id, updateData) {
+            try {
+                const response = await fetch(`${API_URL}/api/vendedores/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    loadVendedores();
+                } else {
+                    alert(`❌ Error: ${data.message || data.error}`);
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function deleteVendedor(id, nombre) {
+            if (!confirm(`¿Estás seguro de eliminar al vendedor "${nombre}"?`)) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/vendedores/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    loadVendedores();
+                } else {
+                    alert(`❌ Error: ${data.message || data.error}`);
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function showAsignarZona(vendedorId, vendedorNombre) {
+            await loadZonasForSelection();
+            
+            const zonasList = zonasDisponibles.map(z => `${z.id} - ${z.nombre} (${z.ciudad_nombre})`).join('\n');
+            const zona_id = prompt(`Asignar zona a: ${vendedorNombre}\n\nSelecciona el ID de la zona:\n\n${zonasList}`);
+
+            if (!zona_id) return;
+
+            await asignarZonaVendedor(vendedorId, parseInt(zona_id));
+        }
+
+        async function asignarZonaVendedor(vendedorId, zona_id) {
+            try {
+                const response = await fetch(`${API_URL}/api/vendedores/${vendedorId}/asignar-zona`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ zona_id })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    loadVendedores();
+                } else {
+                    alert(`❌ Error: ${data.message || data.error}`);
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function loadZonasForSelection() {
+            try {
+                const response = await fetch(`${API_URL}/api/zonas`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    zonasDisponibles = data.data;
+                }
+            } catch (error) {
+                console.error('Error cargando zonas:', error);
+            }
+        }
+
+        // ========== CHECK-IN ==========
+        async function hacerCheckin() {
+            const result = document.getElementById('checkinResult');
+            result.innerHTML = '<div class="loading"><div class="spinner"></div>Procesando...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/visitas/checkin`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        vendedor_id: 1,
+                        tendero_id: 1,
+                        ubicacion_latitud: 4.7110,
+                        ubicacion_longitud: -74.0721
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    result.innerHTML = `<div class="alert alert-success">✅ Check-in exitoso!<br>Visita ID: ${data.data.id}</div>`;
+                } else {
+                    result.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="alert alert-danger">❌ Error de conexión</div>`;
+            }
+        }
+
+        // ========== STOCK E INVENTARIO ==========
+        async function registrarStock(event) {
+            event.preventDefault();
+            
+            const stockData = {
+                tendero_id: parseInt(document.getElementById('stockTenderoId').value),
+                producto_id: parseInt(document.getElementById('stockProductoId').value),
+                stock_inicial: parseInt(document.getElementById('stockInicial').value),
+                stock_minimo: parseInt(document.getElementById('stockMinimo').value),
+                stock_maximo: parseInt(document.getElementById('stockMaximo').value)
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/stock/registrar`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(stockData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Stock registrado exitosamente');
+                    document.getElementById('formStock').reset();
+                    loadInventario();
+                } else {
+                    alert('❌ Error: ' + (data.message || 'Error al registrar stock'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function loadInventario() {
+            try {
+                const response = await fetch(`${API_URL}/api/stock/inventario`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                const tbody = document.getElementById('inventarioBody');
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    tbody.innerHTML = data.data.map(item => {
+                        const porcentaje = (item.stock_actual / item.stock_maximo) * 100;
+                        let estadoColor = '#28a745';
+                        let estadoTexto = '✅ Óptimo';
+                        
+                        if (porcentaje < 20) {
+                            estadoColor = '#dc3545';
+                            estadoTexto = '🔴 Crítico';
+                        } else if (porcentaje < 50) {
+                            estadoColor = '#ffc107';
+                            estadoTexto = '⚠️ Bajo';
+                        }
+
+                        return `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 12px;">${item.tendero_nombre}</td>
+                                <td style="padding: 12px;">${item.producto_nombre}</td>
+                                <td style="padding: 12px; text-align: center; font-weight: bold;">${item.stock_actual}</td>
+                                <td style="padding: 12px; text-align: center;">${item.stock_minimo}</td>
+                                <td style="padding: 12px; text-align: center;">${item.stock_maximo}</td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <span style="background: ${estadoColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">
+                                        ${estadoTexto}
+                                    </span>
+                                </td>
+                                <td style="padding: 12px; text-align: center; font-size: 12px; color: #666;">
+                                    ${new Date(item.ultima_actualizacion).toLocaleString('es-CO')}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">No hay productos en inventario</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error cargando inventario:', error);
+                document.getElementById('inventarioBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #dc3545;">Error al cargar inventario</td></tr>';
+            }
+        }
+
+        async function loadStockSelects() {
+            try {
+                // Cargar tenderos
+                const tenderosRes = await fetch(`${API_URL}/api/tenderos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const tenderosData = await tenderosRes.json();
+                
+                const selectTendero = document.getElementById('stockTenderoId');
+                const selectTenderoConsumo = document.getElementById('filtroTenderoConsumo');
+                
+                if (tenderosData.success && tenderosData.data) {
+                    const tenderosOptions = tenderosData.data.map(t => 
+                        `<option value="${t.id}">${t.nombre}</option>`
+                    ).join('');
+                    selectTendero.innerHTML = '<option value="">Seleccionar...</option>' + tenderosOptions;
+                    selectTenderoConsumo.innerHTML = '<option value="">Todos los tenderos</option>' + tenderosOptions;
+                }
+
+                // Cargar productos
+                const productosRes = await fetch(`${API_URL}/api/productos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const productosData = await productosRes.json();
+                
+                const selectProducto = document.getElementById('stockProductoId');
+                const selectProductoConsumo = document.getElementById('filtroProductoConsumo');
+                
+                if (productosData.success && productosData.data) {
+                    // Para el formulario de stock, usamos el ID
+                    const productosOptionsStock = productosData.data.map(p => 
+                        `<option value="${p.id}">${p.nombre} - ${p.sku}</option>`
+                    ).join('');
+                    selectProducto.innerHTML = '<option value="">Seleccionar...</option>' + productosOptionsStock;
+                    
+                    // Para el filtro de consumo, usamos el NOMBRE del producto como value
+                    const productosOptionsConsumo = productosData.data.map(p => 
+                        `<option value="${p.nombre}">${p.nombre} - ${p.sku}</option>`
+                    ).join('');
+                    selectProductoConsumo.innerHTML = '<option value="">Todos los productos</option>' + productosOptionsConsumo;
+                }
+            } catch (error) {
+                console.error('Error cargando selects:', error);
+            }
+        }
+
+        // ========== HISTORIAL DE CONSUMO ==========
+        async function loadHistorialConsumo() {
+            const tenderoId = document.getElementById('filtroTenderoConsumo').value;
+            const productoNombreFiltro = document.getElementById('filtroProductoConsumo').value;
+            
+            console.log('loadHistorialConsumo - TenderoID:', tenderoId, 'Producto:', productoNombreFiltro);
+            
+            if (!tenderoId) {
+                document.getElementById('historialConsumoBody').innerHTML = 
+                    '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">Selecciona un tendero para ver su historial</td></tr>';
+                // Resetear KPIs
+                document.getElementById('consumoTotalCompras').textContent = '-';
+                document.getElementById('consumoTotalGastado').textContent = '-';
+                document.getElementById('consumoProductosDiferentes').textContent = '-';
+                return;
+            }
+
+            try {
+                console.log('Fetching historial para tendero:', tenderoId);
+                const response = await fetch(`${API_URL}/api/historial/${tenderoId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                console.log('Historial Response:', data);
+
+                const tbody = document.getElementById('historialConsumoBody');
+                const selectTendero = document.getElementById('filtroTenderoConsumo');
+                const tenderoNombre = selectTendero.options[selectTendero.selectedIndex].text;
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    // Filtrar por producto si se seleccionó uno
+                    let datosFiltrados = data.data;
+                    let alertaProductoNoEncontrado = false;
+
+                    if (productoNombreFiltro && productoNombreFiltro !== '') {
+                        datosFiltrados = data.data.filter(item => item.producto_nombre === productoNombreFiltro);
+                        
+                        // Si no hay resultados después del filtro, mostrar alerta
+                        if (datosFiltrados.length === 0) {
+                            alertaProductoNoEncontrado = true;
+                        }
+                    }
+
+                    if (datosFiltrados.length > 0) {
+                        // Calcular totales con datos filtrados
+                        const totalComprasFiltradas = datosFiltrados.length;
+                        const totalGastadoFiltrado = datosFiltrados.reduce((sum, item) => sum + parseFloat(item.total), 0);
+                        const productosUnicosFiltrados = new Set(datosFiltrados.map(item => item.producto_nombre)).size;
+
+                        // Actualizar resumen con datos filtrados
+                        document.getElementById('consumoTotalCompras').textContent = totalComprasFiltradas;
+                        document.getElementById('consumoTotalGastado').textContent = `$${totalGastadoFiltrado.toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        document.getElementById('consumoProductosDiferentes').textContent = productosUnicosFiltrados;
+
+                        // Llenar tabla con datos filtrados
+                        tbody.innerHTML = datosFiltrados.map(item => `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 12px;">${new Date(item.fecha_visita).toLocaleDateString('es-CO')}</td>
+                                <td style="padding: 12px;">${tenderoNombre}</td>
+                                <td style="padding: 12px;">${item.producto_nombre}</td>
+                                <td style="padding: 12px; text-align: center; font-weight: bold;">${item.cantidad}</td>
+                                <td style="padding: 12px; text-align: right;">$${parseFloat(item.precio_venta).toLocaleString('es-CO')}</td>
+                                <td style="padding: 12px; text-align: right; font-weight: bold; color: #667eea;">$${parseFloat(item.total).toLocaleString('es-CO')}</td>
+                                <td style="padding: 12px;">${item.vendedor_nombre}</td>
+                            </tr>
+                        `).join('');
+                    } else if (alertaProductoNoEncontrado) {
+                        // Mostrar alerta cuando el tendero no tiene ese producto
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 20px;">
+                                    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; color: #856404;">
+                                        <div style="font-size: 48px; margin-bottom: 10px;">⚠️</div>
+                                        <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">Producto no encontrado</div>
+                                        <div style="font-size: 14px;">El tendero "${tenderoNombre}" no tiene historial de compras del producto "${productoNombreFiltro}"</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        document.getElementById('consumoTotalCompras').textContent = '0';
+                        document.getElementById('consumoTotalGastado').textContent = '$0';
+                        document.getElementById('consumoProductosDiferentes').textContent = '0';
+                    }
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 20px;">
+                                <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; color: #6c757d;">
+                                    <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+                                    <div style="font-size: 16px;">No hay historial de compras para este tendero</div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    document.getElementById('consumoTotalCompras').textContent = '0';
+                    document.getElementById('consumoTotalGastado').textContent = '$0';
+                    document.getElementById('consumoProductosDiferentes').textContent = '0';
+                }
+            } catch (error) {
+                console.error('Error cargando historial:', error);
+                document.getElementById('historialConsumoBody').innerHTML = 
+                    '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #dc3545;">❌ Error al cargar historial</td></tr>';
+            }
+        }
+
+        // Auto-refresh mapa cada 30 segundos
+        setInterval(() => {
+            if (map && document.getElementById('tab-mapa').classList.contains('active')) {
+                loadTenderosEnMapa();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

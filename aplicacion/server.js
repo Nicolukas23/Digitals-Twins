@@ -1,21 +1,38 @@
+require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
+const cors = require('cors');
+
+// Importar rutas modulares
+const apiRoutes = require('./routes/api-routes');
+const apiRoutes2 = require('./routes/api-routes-2');
 
 const app = express();
 const PORT = 3000;
 
-// Configuración de base de datos
+// Configuración de base de datos - Supabase
 const pool = new Pool({
-  host: 'localhost',
-  port: 5432,
-  database: 'gemelos_digitales',
-  user: process.env.USER,
-  password: '',
+  host: process.env.DB_HOST || 'aws-1-us-east-2.pooler.supabase.com',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'postgres',
+  user: process.env.DB_USER || 'postgres.mgvckmnfovfsphbepimj',
+  password: process.env.DB_PASS || 'BaezCaceres1234*',
+  ssl: {
+    rejectUnauthorized: false
+  },
   max: 20,
 });
 
 // Middleware
+app.use(cors());
 app.use(express.json());
+app.use(express.static('../')); // Servir archivos estáticos desde la carpeta raíz
+
+// Middleware para pasar pool a las rutas
+app.use((req, res, next) => {
+  req.pool = pool;
+  next();
+});
 
 // Función de verificación de base de datos mejorada
 const verifyDatabase = async () => {
@@ -64,13 +81,13 @@ app.get('/health', async (req, res) => {
 app.get('/api/tenderos', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT t.id, t.nombre, t.direccion, t.latitud, t.longitud, 
+      SELECT t.id, t.nombre, t.direccion, t.telefono, t.email, 
+             t.latitud, t.longitud, t.identificacion, t.activo,
              z.nombre as zona_nombre, c.nombre as ciudad_nombre
       FROM tenderos t
       LEFT JOIN zonas z ON t.zona_id = z.id
       LEFT JOIN ciudades c ON z.ciudad_id = c.id
-      WHERE t.activo = true 
-      LIMIT 10
+      ORDER BY t.id
     `);
     
     res.json({
@@ -119,329 +136,132 @@ app.get('/api/tenderos', async (req, res) => {
   }
 });
 
-// Ruta para ver tenderos en formato tabla HTML - ¡ESTA ES LA RUTA NUEVA!
-app.get('/tenderos-tabla', async (req, res) => {
+// Endpoint para crear ciudades (admin)
+app.post('/api/ciudades', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT t.id, t.nombre, t.direccion, t.latitud, t.longitud, 
-             z.nombre as zona_nombre, c.nombre as ciudad_nombre
-      FROM tenderos t
-      LEFT JOIN zonas z ON t.zona_id = z.id
-      LEFT JOIN ciudades c ON z.ciudad_id = c.id
-      WHERE t.activo = true 
-      LIMIT 10
-    `);
+    const { nombre, codigo, bounds } = req.body;
+    if (!nombre || !codigo) return res.status(400).json({ success: false, message: 'nombre y codigo son requeridos' });
 
-    let tableRows = '';
-    if (result.rows.length > 0) {
-      result.rows.forEach(tendero => {
-        tableRows += `
-          <tr>
-            <td>${tendero.id}</td>
-            <td>${tendero.nombre}</td>
-            <td>${tendero.direccion}</td>
-            <td>${tendero.ciudad_nombre || 'N/A'}</td>
-            <td>${tendero.zona_nombre || 'N/A'}</td>
-            <td>${tendero.latitud}</td>
-            <td>${tendero.longitud}</td>
-            <td>
-              <a href="https://www.google.com/maps?q=${tendero.latitud},${tendero.longitud}" target="_blank">
-                Ver en Maps
-              </a>
-            </td>
-          </tr>
-        `;
-      });
-    } else {
-      tableRows = `
-        <tr>
-          <td colspan="8" style="text-align: center; color: #666;">
-            No hay tenderos en la base de datos
-          </td>
-        </tr>
-      `;
-    }
-
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <title>Tabla de Tenderos - Gemelos Digitales</title>
-          <meta charset="utf-8">
-          <style>
-              body { 
-                  font-family: Arial, sans-serif; 
-                  margin: 40px; 
-                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                  min-height: 100vh;
-              }
-              .container {
-                  max-width: 1200px;
-                  margin: 0 auto;
-                  background: white;
-                  padding: 30px;
-                  border-radius: 15px;
-                  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-              }
-              .header { 
-                  text-align: center; 
-                  margin-bottom: 30px; 
-                  padding: 20px;
-                  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                  border-radius: 10px;
-                  color: white;
-              }
-              table { 
-                  width: 100%; 
-                  border-collapse: collapse; 
-                  margin: 20px 0; 
-                  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-              }
-              th, td { 
-                  padding: 12px; 
-                  text-align: left; 
-                  border-bottom: 1px solid #ddd; 
-              }
-              th { 
-                  background-color: #4CAF50; 
-                  color: white; 
-                  font-weight: bold;
-              }
-              tr:hover { 
-                  background-color: #f5f5f5; 
-                  transform: scale(1.01);
-                  transition: all 0.2s ease;
-              }
-              .btn {
-                  display: inline-block;
-                  padding: 8px 16px;
-                  background: #007bff;
-                  color: white;
-                  text-decoration: none;
-                  border-radius: 5px;
-                  margin: 5px;
-                  transition: background 0.3s;
-              }
-              .btn:hover {
-                  background: #0056b3;
-              }
-              .back-link {
-                  display: inline-block;
-                  margin-bottom: 20px;
-                  color: #007bff;
-                  text-decoration: none;
-              }
-              .back-link:hover {
-                  text-decoration: underline;
-              }
-          </style>
-      </head>
-      <body>
-          <div class="container">
-              <div class="header">
-                  <h1>🏪 Tabla de Tenderos - Gemelos Digitales</h1>
-                  <p>Visualización de puntos de venta georreferenciados</p>
-              </div>
-              
-              <a href="/" class="back-link">← Volver al Dashboard Principal</a>
-
-              <table>
-                  <thead>
-                      <tr>
-                          <th>ID</th>
-                          <th>Nombre</th>
-                          <th>Dirección</th>
-                          <th>Ciudad</th>
-                          <th>Zona</th>
-                          <th>Latitud</th>
-                          <th>Longitud</th>
-                          <th>Acción</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      ${tableRows}
-                  </tbody>
-              </table>
-              
-              <div style="margin-top: 30px; text-align: center;">
-                  <p><strong>Total de tenderos:</strong> ${result.rows.length}</p>
-                  <p>
-                      <a href="/api/tenderos" class="btn">Ver en formato JSON</a>
-                      <a href="/" class="btn">Volver al Dashboard</a>
-                  </p>
-              </div>
-          </div>
-      </body>
-      </html>
-    `);
+    const result = await pool.query(
+      'INSERT INTO ciudades (nombre, codigo, bounds) VALUES ($1,$2,$3) RETURNING *',
+      [nombre, codigo, bounds || null]
+    );
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).send(`
-      <div style="padding: 20px; background: #f8d7da; color: #721c24; border-radius: 5px;">
-        <h2>Error</h2>
-        <p>${error.message}</p>
-        <a href="/">Volver al inicio</a>
-      </div>
-    `);
+    console.error('Error creando ciudad:', error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Ruta principal - Dashboard
+// Endpoint para crear zonas (admin)
+app.post('/api/zonas', async (req, res) => {
+  try {
+    const { ciudad_id, nombre, tipo_zona, bounds } = req.body;
+    if (!ciudad_id || !nombre) return res.status(400).json({ success: false, message: 'ciudad_id y nombre son requeridos' });
+
+    // verificar ciudad
+    const ciudad = await pool.query('SELECT id FROM ciudades WHERE id=$1', [ciudad_id]);
+    if (ciudad.rowCount === 0) return res.status(400).json({ success: false, message: 'ciudad no encontrada' });
+
+    const result = await pool.query(
+      'INSERT INTO zonas (ciudad_id, nombre, tipo_zona, bounds) VALUES ($1,$2,$3,$4) RETURNING *',
+      [ciudad_id, nombre, tipo_zona || null, bounds || null]
+    );
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error creando zona:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Endpoint para crear tenderos (admin)
+app.post('/api/tenderos', async (req, res) => {
+  try {
+    const { identificacion, nombre, direccion, latitud, longitud, zona_id } = req.body;
+    if (!identificacion || !nombre || !zona_id) return res.status(400).json({ success: false, message: 'identificacion, nombre y zona_id son requeridos' });
+
+    // verificar identificacion única
+    const exists = await pool.query('SELECT id FROM tenderos WHERE identificacion=$1', [identificacion]);
+    if (exists.rowCount > 0) return res.status(400).json({ success: false, message: 'Ya existe un tendero con esa identificacion' });
+
+    // verificar zona
+    const z = await pool.query('SELECT z.id, z.nombre as zona_nombre, c.id as ciudad_id, c.nombre as ciudad_nombre FROM zonas z LEFT JOIN ciudades c ON z.ciudad_id=c.id WHERE z.id=$1', [zona_id]);
+    if (z.rowCount === 0) return res.status(400).json({ success: false, message: 'zona no encontrada' });
+
+    const result = await pool.query(
+      'INSERT INTO tenderos (identificacion, nombre, direccion, latitud, longitud, zona_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, identificacion, nombre, direccion, latitud, longitud, zona_id',
+      [identificacion, nombre, direccion || null, latitud || null, longitud || null, zona_id]
+    );
+
+    // adjuntar información de zona/ciudad al response
+    const tendero = result.rows[0];
+    tendero.zona_nombre = z.rows[0].zona_nombre;
+    tendero.ciudad_id = z.rows[0].ciudad_id;
+    tendero.ciudad_nombre = z.rows[0].ciudad_nombre;
+
+    res.json({ success: true, data: tendero });
+  } catch (error) {
+    console.error('Error creando tendero:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// =====================================================
+// NUEVOS ENDPOINTS - HISTORIAS DE USUARIO
+// =====================================================
+
+// AUTENTICACIÓN
+app.post('/api/auth/register', apiRoutes.registerUser);
+app.post('/api/auth/login', apiRoutes.loginUser);
+app.post('/api/auth/logout', apiRoutes.logoutUser);
+app.post('/api/auth/recover-password', apiRoutes.recoverPassword);
+app.get('/api/auth/me', apiRoutes.authenticateToken, apiRoutes.getCurrentUser);
+
+// PRODUCTOS (Catálogo máximo 50)
+app.get('/api/productos', apiRoutes.getProductos);
+app.post('/api/productos', apiRoutes.authenticateToken, apiRoutes.createProducto);
+app.put('/api/productos/:id', apiRoutes.authenticateToken, apiRoutes.updateProducto);
+app.delete('/api/productos/:id', apiRoutes.authenticateToken, apiRoutes.deleteProducto);
+app.post('/api/productos/asignar', apiRoutes.authenticateToken, apiRoutes.asignarProducto);
+
+// GM-9: VENDEDORES Y ZONAS
+app.get('/api/vendedores', apiRoutes.authenticateToken, apiRoutes.getVendedores);
+app.post('/api/vendedores', apiRoutes.authenticateToken, apiRoutes.createVendedor);
+app.put('/api/vendedores/:id', apiRoutes.authenticateToken, apiRoutes.updateVendedor);
+app.delete('/api/vendedores/:id', apiRoutes.authenticateToken, apiRoutes.deleteVendedor);
+app.put('/api/vendedores/:id/asignar-zona', apiRoutes.authenticateToken, apiRoutes.asignarZonaVendedor);
+app.get('/api/zonas', apiRoutes.authenticateToken, apiRoutes.getZonas);
+
+// VISITAS (Check-in/Check-out georreferenciado)
+app.post('/api/visitas/checkin', apiRoutes.authenticateToken, apiRoutes2.checkinVisita);
+app.post('/api/visitas/checkout/:id', apiRoutes.authenticateToken, apiRoutes2.checkoutVisita);
+app.get('/api/visitas/pendientes', apiRoutes.authenticateToken, apiRoutes2.getVisitasPendientes);
+app.get('/api/visitas/cumplimiento/:vendedor_id', apiRoutes.authenticateToken, apiRoutes2.getCumplimientoVendedor);
+
+// STOCK Y ALERTAS
+app.get('/api/stock/inventario', apiRoutes.authenticateToken, apiRoutes2.getInventarioCompleto);
+app.get('/api/stock/alertas', apiRoutes.authenticateToken, apiRoutes2.getAlertasBajoStock);
+app.put('/api/stock/umbral/:id', apiRoutes.authenticateToken, apiRoutes2.configurarUmbralStock);
+app.post('/api/stock/registrar', apiRoutes.authenticateToken, apiRoutes2.registrarStock);
+
+// DASHBOARD
+app.get('/api/dashboard/ventas-mes', apiRoutes.authenticateToken, apiRoutes2.getVentasPorMes);
+app.get('/api/dashboard/ventas-zona', apiRoutes.authenticateToken, apiRoutes2.getVentasPorZona);
+app.get('/api/dashboard/comparacion-vendedores', apiRoutes.authenticateToken, apiRoutes2.getComparacionVendedores);
+
+// HISTORIAL Y VENTAS
+app.get('/api/historial/:tendero_id', apiRoutes.authenticateToken, apiRoutes2.getHistorialCompras);
+app.post('/api/ventas', apiRoutes.authenticateToken, apiRoutes2.registrarVenta);
+
+
+// Ruta principal - Redireccionar al dashboard
 app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Gemelos Digitales - MVP Entregado</title>
-        <meta charset="utf-8">
-        <style>
-            body { 
-                font-family: 'Arial', sans-serif; 
-                margin: 0; 
-                padding: 20px; 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: #333;
-            }
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-                background: white;
-                padding: 30px;
-                border-radius: 15px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 30px;
-                padding: 20px;
-                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                border-radius: 10px;
-                color: white;
-            }
-            .card {
-                border: 1px solid #e0e0e0;
-                padding: 20px;
-                margin: 15px 0;
-                border-radius: 10px;
-                background: #f8f9fa;
-            }
-            .success { border-left: 5px solid #28a745; }
-            .info { border-left: 5px solid #17a2b8; }
-            .warning { border-left: 5px solid #ffc107; }
-            .endpoints {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 15px;
-                margin: 20px 0;
-            }
-            .endpoint {
-                background: white;
-                padding: 15px;
-                border-radius: 8px;
-                border: 1px solid #ddd;
-            }
-            code {
-                background: #2d2d2d;
-                color: #f8f8f2;
-                padding: 10px;
-                border-radius: 5px;
-                display: block;
-                margin: 10px 0;
-                font-family: 'Monaco', 'Menlo', monospace;
-            }
-            .btn {
-                display: inline-block;
-                padding: 10px 20px;
-                background: #007bff;
-                color: white;
-                text-decoration: none;
-                border-radius: 5px;
-                margin: 5px;
-                transition: background 0.3s;
-            }
-            .btn:hover {
-                background: #0056b3;
-            }
-            .status-badge {
-                display: inline-block;
-                padding: 5px 10px;
-                border-radius: 15px;
-                color: white;
-                font-size: 12px;
-                margin-left: 10px;
-            }
-            .status-success { background: #28a745; }
-            .status-warning { background: #ffc107; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>🚀 Gemelos Digitales - MVP Entregado</h1>
-                <p>Sistema de Optimización de Ventas con Georreferenciación</p>
-                <span class="status-badge status-success">FUNCIONANDO</span>
-            </div>
+  res.redirect('/dashboard');
+});
 
-            <div class="card success">
-                <h2>✅ Proyecto Completado y Funcional</h2>
-                <p><strong>Estudiante:</strong> Maria Barrero</p>
-                <p><strong>Fecha de Entrega:</strong> ${new Date().toLocaleDateString()}</p>
-                <p><strong>Estado:</strong> Sistema completamente operativo</p>
-                <p><strong>Base de datos:</strong> PostgreSQL con datos de ejemplo</p>
-            </div>
-
-            <div class="endpoints">
-                <div class="endpoint">
-                    <h4>🌐 Health Check</h4>
-                    <p>Verifica el estado completo del sistema</p>
-                    <code>GET /health</code>
-                    <a href="/health" class="btn">Probar Endpoint</a>
-                </div>
-                
-                <div class="endpoint">
-                    <h4>🏪 API Tenderos (JSON)</h4>
-                    <p>Datos de tenderos en formato JSON para aplicaciones</p>
-                    <code>GET /api/tenderos</code>
-                    <a href="/api/tenderos" class="btn">Ver JSON</a>
-                </div>
-
-                <div class="endpoint">
-                    <h4>📋 Tabla de Tenderos</h4>
-                    <p>Interfaz tabular con enlaces a Google Maps</p>
-                    <code>GET /tenderos-tabla</code>
-                    <a href="/tenderos-tabla" class="btn">Ver Tabla</a>
-                </div>
-            </div>
-
-            <div class="card info">
-                <h3>📊 Funcionalidades Implementadas</h3>
-                <ul>
-                    <li>✅ Georreferenciación de Bogotá, Medellín y Cali</li>
-                    <li>✅ Gestión de tenderos con coordenadas GPS</li>
-                    <li>✅ Asignación de vendedores por zonas</li>
-                    <li>✅ Catálogo de productos e inventarios</li>
-                    <li>✅ Seguimiento de visitas comerciales</li>
-                    <li>✅ Dashboard con KPIs de ventas</li>
-                    <li>✅ API REST completamente funcional</li>
-                    <li>✅ Base de datos PostgreSQL configurada</li>
-                </ul>
-            </div>
-
-            <div class="card warning">
-                <h3>🎯 Para el Evaluador</h3>
-                <p><strong>El proyecto está 100% funcional y listo para evaluación:</strong></p>
-                <ul>
-                    <li>Servidor Node.js ejecutándose en puerto 3000</li>
-                    <li>Base de datos PostgreSQL con datos de ejemplo</li>
-                    <li>API REST con endpoints documentados</li>
-                    <li>Interfaz web responsive y profesional</li>
-                    <li>Estructura de proyecto organizada</li>
-                    <li>Documentación completa incluida</li>
-                </ul>
-            </div>
-        </div>
-    </body>
-    </html>
-  `);
+// Ruta para servir el dashboard completo
+app.get('/dashboard', (req, res) => {
+  res.sendFile('dashboard-completo.html', { root: '../' });
 });
 
 app.listen(PORT, () => {
@@ -449,9 +269,9 @@ app.listen(PORT, () => {
   console.log('🚀 Gemelos Digitales - MVP FUNCIONANDO');
   console.log('🚀 ===================================');
   console.log('🌐 Servidor: http://localhost:3000');
+  console.log('📊 Dashboard: http://localhost:3000/dashboard');
   console.log('📊 Health:   http://localhost:3000/health');
-  console.log('🏪 Tenderos: http://localhost:3000/api/tenderos');
-  console.log('📋 Tabla:    http://localhost:3000/tenderos-tabla');
+  console.log('🏪 API:      http://localhost:3000/api/tenderos');
   console.log('⏰ Iniciado: ' + new Date().toLocaleString());
   console.log('💡 Presiona Ctrl+C para detener el servidor');
   console.log('');
