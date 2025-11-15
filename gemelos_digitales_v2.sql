@@ -22,6 +22,7 @@ CREATE TABLE zonas (
 -- Tabla de tenderos
 CREATE TABLE tenderos (
     id SERIAL PRIMARY KEY,
+    identificacion VARCHAR(50) UNIQUE NOT NULL,
     nombre VARCHAR(200) NOT NULL,
     direccion TEXT,
     telefono VARCHAR(20),
@@ -99,20 +100,30 @@ CREATE TABLE ventas (
 );
 
 -- Insertar datos iniciales
+-- Insertar datos iniciales: ciudades
 INSERT INTO ciudades (nombre, codigo, bounds) VALUES 
 ('Bogotá', 'BOG', '{"north": 4.8, "south": 4.5, "east": -74.0, "west": -74.2}'),
 ('Medellín', 'MED', '{"north": 6.3, "south": 6.2, "east": -75.5, "west": -75.6}'),
 ('Cali', 'CAL', '{"north": 3.5, "south": 3.3, "east": -76.4, "west": -76.6}');
 
+-- Insertar zonas: al menos Norte/Centro/Sur para cada ciudad
 INSERT INTO zonas (ciudad_id, nombre, tipo_zona, bounds) VALUES 
 (1, 'Norte', 'norte', '{"north": 4.8, "south": 4.7, "east": -74.0, "west": -74.1}'),
 (1, 'Centro', 'centro', '{"north": 4.65, "south": 4.6, "east": -74.05, "west": -74.15}'),
-(2, 'Centro', 'centro', '{"north": 6.25, "south": 6.22, "east": -75.55, "west": -75.58}');
+(1, 'Sur', 'sur', '{"north": 4.6, "south": 4.5, "east": -74.05, "west": -74.2}'),
+(2, 'Norte', 'norte', '{"north": 6.3, "south": 6.28, "east": -75.5, "west": -75.6}'),
+(2, 'Centro', 'centro', '{"north": 6.25, "south": 6.22, "east": -75.55, "west": -75.58}'),
+(2, 'Sur', 'sur', '{"north": 6.22, "south": 6.2, "east": -75.56, "west": -75.6}'),
+(3, 'Norte', 'norte', '{"north": 3.5, "south": 3.45, "east": -76.4, "west": -76.5}'),
+(3, 'Centro', 'centro', '{"north": 3.45, "south": 3.4, "east": -76.45, "west": -76.55}'),
+(3, 'Sur', 'sur', '{"north": 3.4, "south": 3.3, "east": -76.5, "west": -76.6}');
 
-INSERT INTO tenderos (nombre, direccion, latitud, longitud, zona_id) VALUES 
-('Tienda La Esquina', 'Calle 123 #45-67', 4.710989, -74.072092, 1),
-('Mini Market Central', 'Av Principal 234', 4.609710, -74.081750, 2),
-('Abastos Medellín', 'Carrera 56 #78-90', 6.244203, -75.581210, 3);
+-- Insertar tenderos de ejemplo: incluir 'identificacion' y asociar a zona existente
+INSERT INTO tenderos (identificacion, nombre, direccion, latitud, longitud, zona_id) VALUES 
+('ID-001', 'Tienda La Esquina', 'Calle 123 #45-67', 4.710989, -74.072092, 1),
+('ID-002', 'Mini Market Central', 'Av Principal 234', 4.609710, -74.081750, 2),
+('ID-003', 'Abastos Medellín', 'Carrera 56 #78-90', 6.244203, -75.581210, 5),
+('ID-004', 'Tienda Cali Norte', 'Cll 1 #2-3', 3.48, -76.52, 7);
 
 INSERT INTO vendedores (nombre, codigo, email, zona_asignada) VALUES 
 ('Carlos Rodríguez', 'V001', 'carlos@empresa.com', 1),

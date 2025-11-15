@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Gemelos Digitales - Dashboard Completo</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -401,6 +404,7 @@
                 <button class="tab-btn" onclick="showTab('stock')">📦 Stock</button>
                 <button class="tab-btn" onclick="showTab('consumo')">📊 Consumo</button>
                 <button class="tab-btn" onclick="showTab('historial')">📋 Historial</button>
+                <button class="tab-btn" onclick="showTab('evolucion')">📈 Evolución</button>
                 <button class="tab-btn" onclick="showTab('alertas')">🔔 Alertas</button>
                 <button class="tab-btn" onclick="showTab('checkin')">✅ Check-in</button>
             </div>
@@ -499,6 +503,73 @@
                         <button class="btn-sm btn-success" onclick="exportarHistorialPDF()" id="btnExportPDF" style="display: none;">📄 Exportar PDF</button>
                     </div>
                     <div id="historialContent"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Evolución -->
+            <div id="tab-evolucion" class="tab-content">
+                <div class="card">
+                    <h2>📈 Evolución de Ventas y Visitas</h2>
+                    
+                    <!-- Controles y Filtros -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                            <!-- Selector de fechas -->
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Fecha Inicio:</label>
+                                <input type="date" id="fechaInicio" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Fecha Fin:</label>
+                                <input type="date" id="fechaFin" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                            </div>
+                            
+                            <!-- Botón actualizar -->
+                            <div style="padding-top: 28px;">
+                                <button class="btn-sm btn-info" onclick="loadEvolucion()">🔄 Actualizar</button>
+                                <button class="btn-sm btn-secondary" onclick="setUltimos30Dias()">30 Días</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Checkboxes para mostrar/ocultar series -->
+                        <div style="display: flex; gap: 20px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" id="toggleVisitas" checked onchange="toggleSerie('visitas')" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                <span style="font-weight: 600;">📍 Mostrar Visitas</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" id="toggleVentas" checked onchange="toggleSerie('ventas')" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                <span style="font-weight: 600;">💰 Mostrar Ventas</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Contenedor de la gráfica -->
+                    <div style="position: relative; height: 400px; margin-bottom: 20px;">
+                        <canvas id="chartEvolucion"></canvas>
+                    </div>
+                    
+                    <!-- Información adicional -->
+                    <div id="evolucionInfo" style="display: none; padding: 15px; background: #e8f4f8; border-radius: 8px; margin-top: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                            <div>
+                                <strong>📅 Período:</strong>
+                                <p id="infoPeriodo" style="margin: 5px 0 0 0; color: #555;">-</p>
+                            </div>
+                            <div>
+                                <strong>📊 Total Visitas:</strong>
+                                <p id="infoTotalVisitas" style="margin: 5px 0 0 0; color: #555;">-</p>
+                            </div>
+                            <div>
+                                <strong>💰 Total Ventas:</strong>
+                                <p id="infoTotalVentas" style="margin: 5px 0 0 0; color: #555;">-</p>
+                            </div>
+                            <div>
+                                <strong>💵 Facturación:</strong>
+                                <p id="infoFacturacion" style="margin: 5px 0 0 0; color: #555;">-</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -651,19 +722,217 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const API_URL = 'http://localhost:3000';
-        let token = localStorage.getItem('token');
         let map = null;
         let markers = [];
 
+        // ========== SECURE TOKEN MANAGER ==========
+        const TokenManager = {
+            TOKEN_KEY: 'gd_auth_token',
+            REFRESH_KEY: 'gd_refresh_token',
+            EXPIRY_KEY: 'gd_token_expiry',
+            USER_KEY: 'gd_user_data',
+            REFRESH_THRESHOLD: 2 * 60 * 1000, // 2 minutos antes de expirar
+            
+            // Encriptación simple (en producción usar crypto-js o similar)
+            encrypt(data) {
+                try {
+                    return btoa(encodeURIComponent(JSON.stringify(data)));
+                } catch (e) {
+                    console.error('Error encrypting:', e);
+                    return null;
+                }
+            },
+            
+            decrypt(data) {
+                try {
+                    return JSON.parse(decodeURIComponent(atob(data)));
+                } catch (e) {
+                    console.error('Error decrypting:', e);
+                    return null;
+                }
+            },
+            
+            setToken(token, expiresIn = 15 * 60 * 1000) { // 15 min por defecto
+                const expiry = Date.now() + expiresIn;
+                const encrypted = this.encrypt({ token, expiry });
+                if (encrypted) {
+                    sessionStorage.setItem(this.TOKEN_KEY, encrypted);
+                    sessionStorage.setItem(this.EXPIRY_KEY, expiry.toString());
+                    this.scheduleRefresh(expiresIn);
+                }
+            },
+            
+            getToken() {
+                const encrypted = sessionStorage.getItem(this.TOKEN_KEY);
+                if (!encrypted) return null;
+                
+                const data = this.decrypt(encrypted);
+                if (!data || !data.token) return null;
+                
+                // Verificar si expiró
+                if (Date.now() >= data.expiry) {
+                    console.log('Token expired');
+                    this.clearAll();
+                    return null;
+                }
+                
+                return data.token;
+            },
+            
+            setUserData(userData) {
+                const encrypted = this.encrypt(userData);
+                if (encrypted) {
+                    sessionStorage.setItem(this.USER_KEY, encrypted);
+                }
+            },
+            
+            getUserData() {
+                const encrypted = sessionStorage.getItem(this.USER_KEY);
+                if (!encrypted) return null;
+                return this.decrypt(encrypted);
+            },
+            
+            clearAll() {
+                sessionStorage.removeItem(this.TOKEN_KEY);
+                sessionStorage.removeItem(this.REFRESH_KEY);
+                sessionStorage.removeItem(this.EXPIRY_KEY);
+                sessionStorage.removeItem(this.USER_KEY);
+            },
+            
+            isTokenValid() {
+                const token = this.getToken();
+                return token !== null;
+            },
+            
+            getTimeToExpiry() {
+                const expiry = sessionStorage.getItem(this.EXPIRY_KEY);
+                if (!expiry) return 0;
+                return parseInt(expiry) - Date.now();
+            },
+            
+            scheduleRefresh(expiresIn) {
+                const refreshTime = expiresIn - this.REFRESH_THRESHOLD;
+                
+                if (refreshTime > 0) {
+                    setTimeout(() => {
+                        console.log('Auto-refreshing token...');
+                        this.refreshToken();
+                    }, refreshTime);
+                }
+            },
+            
+            async refreshToken() {
+                const currentToken = this.getToken();
+                if (!currentToken) {
+                    console.log('No token to refresh');
+                    this.handleAuthFailure();
+                    return false;
+                }
+                
+                try {
+                    const response = await fetch(`${API_URL}/api/auth/refresh`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${currentToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.data && data.data.token) {
+                            this.setToken(data.data.token, 15 * 60 * 1000);
+                            console.log('✅ Token refreshed successfully');
+                            return true;
+                        }
+                    } else {
+                        console.log('❌ Token refresh failed');
+                        this.handleAuthFailure();
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Error refreshing token:', error);
+                    this.handleAuthFailure();
+                    return false;
+                }
+            },
+            
+            handleAuthFailure() {
+                this.clearAll();
+                if (document.getElementById('mainDashboard').classList.contains('active')) {
+                    alert('⚠️ Sesión expirada. Por favor, inicia sesión nuevamente.');
+                    location.reload();
+                }
+            },
+            
+            startExpiryMonitor() {
+                setInterval(() => {
+                    const timeLeft = this.getTimeToExpiry();
+                    
+                    if (timeLeft <= 0) {
+                        console.log('Token expired in monitor');
+                        this.handleAuthFailure();
+                    } else if (timeLeft <= this.REFRESH_THRESHOLD && timeLeft > 0) {
+                        console.log(`Token expiring soon (${Math.floor(timeLeft/1000)}s), refreshing...`);
+                        this.refreshToken();
+                    }
+                }, 30000); // Check every 30 seconds
+            }
+        };
+
+        // Interceptor para requests con token
+        async function fetchWithAuth(url, options = {}) {
+            const token = TokenManager.getToken();
+            
+            if (!token) {
+                TokenManager.handleAuthFailure();
+                throw new Error('No authentication token');
+            }
+            
+            const headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
+            
+            try {
+                const response = await fetch(url, { ...options, headers });
+                
+                // Si recibimos 401 o 403, el token es inválido
+                if (response.status === 401 || response.status === 403) {
+                    console.log('Received auth error, attempting refresh...');
+                    const refreshed = await TokenManager.refreshToken();
+                    
+                    if (refreshed) {
+                        // Reintentar request con nuevo token
+                        const newToken = TokenManager.getToken();
+                        headers.Authorization = `Bearer ${newToken}`;
+                        return await fetch(url, { ...options, headers });
+                    } else {
+                        TokenManager.handleAuthFailure();
+                        throw new Error('Authentication failed');
+                    }
+                }
+                
+                return response;
+            } catch (error) {
+                console.error('Fetch error:', error);
+                throw error;
+            }
+        }
+
         // Check if user is logged in
-        if (token) {
+        if (TokenManager.isTokenValid()) {
             showDashboard();
+            TokenManager.startExpiryMonitor();
+        } else {
+            TokenManager.clearAll();
         }
 
         function showDashboard() {
+            const userData = TokenManager.getUserData();
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainDashboard').classList.add('active');
-            document.getElementById('userEmail').textContent = localStorage.getItem('userEmail') || 'Usuario';
+            document.getElementById('userEmail').textContent = userData?.email || 'Usuario';
             initMap();
             loadTenderosEnMapa();
         }
@@ -707,9 +976,17 @@
                 console.log('Login response:', data);
 
                 if (response.ok && data.data) {
-                    token = data.data.token;
-                    localStorage.setItem('token', token);
-                    localStorage.setItem('userEmail', email);
+                    // Guardar token de forma segura
+                    TokenManager.setToken(data.data.token, 15 * 60 * 1000); // 15 minutos
+                    TokenManager.setUserData({
+                        email: email,
+                        name: data.data.user?.nombre || email,
+                        rol: data.data.user?.rol || 'usuario'
+                    });
+                    
+                    // Iniciar monitor de expiración
+                    TokenManager.startExpiryMonitor();
+                    
                     showDashboard();
                 } else {
                     alert('❌ Error: ' + (data.message || data.error || 'Error de autenticación'));
@@ -759,6 +1036,7 @@
 
         async function recoverPassword(event) {
             event.preventDefault();
+            
             const email = document.getElementById('recoverEmail').value;
             const newPassword = document.getElementById('recoverPassword').value;
             const passwordConfirm = document.getElementById('recoverPasswordConfirm').value;
@@ -769,7 +1047,6 @@
             }
 
             try {
-                // Primero verificar si el usuario existe
                 const response = await fetch(`${API_URL}/api/auth/recover-password`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -786,17 +1063,31 @@
                     showLoginForm(event);
                     document.getElementById('loginEmail').value = email;
                 } else {
-                    alert('❌ Error: ' + (data.message || data.error || 'No se pudo restablecer la contraseña'));
+                    alert('❌ Error: ' + (data.message || data.error || 'No se pudo cambiar la contraseña'));
                 }
             } catch (error) {
-                alert('❌ Error de conexión');
+                console.error('Error al recuperar contraseña:', error);
+                alert('❌ Error de conexión. Verifica que el servidor esté activo.');
             }
         }
 
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('userEmail');
-            token = null;
+        async function logout() {
+            const token = TokenManager.getToken();
+            
+            // Intentar cerrar sesión en servidor
+            if (token) {
+                try {
+                    await fetch(`${API_URL}/api/auth/logout`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                } catch (error) {
+                    console.error('Error logging out:', error);
+                }
+            }
+            
+            // Limpiar tokens locales
+            TokenManager.clearAll();
             location.reload();
         }
 
@@ -833,6 +1124,14 @@
             if (tabName === 'consumo') {
                 loadStockSelects();
             }
+
+            // Initialize evolucion tab
+            if (tabName === 'evolucion') {
+                if (!evolucionChart) {
+                    initFechasEvolucion();
+                    loadEvolucion();
+                }
+            }
         }
 
         // ========== MAPA ==========
@@ -847,9 +1146,7 @@
 
         async function loadTenderosEnMapa() {
             try {
-                const response = await fetch(`${API_URL}/api/tenderos`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/tenderos`);
                 const data = await response.json();
                 console.log('Tenderos Response:', data);
 
@@ -904,12 +1201,8 @@
             try {
                 // Cargar datos de zonas y vendedores
                 const [zonaRes, vendRes] = await Promise.all([
-                    fetch(`${API_URL}/api/dashboard/ventas-zona`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    }),
-                    fetch(`${API_URL}/api/dashboard/comparacion-vendedores`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    })
+                    fetchWithAuth(`${API_URL}/api/dashboard/ventas-zona`),
+                    fetchWithAuth(`${API_URL}/api/dashboard/comparacion-vendedores`)
                 ]);
 
                 const zonaData = await zonaRes.json();
@@ -933,9 +1226,7 @@
 
         async function loadVentasZona() {
             try {
-                const response = await fetch(`${API_URL}/api/dashboard/ventas-zona`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/dashboard/ventas-zona`);
                 const data = await response.json();
                 console.log('Ventas Zona Response:', data);
 
@@ -995,9 +1286,7 @@
 
         async function loadComparacionVendedores() {
             try {
-                const response = await fetch(`${API_URL}/api/dashboard/comparacion-vendedores`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/dashboard/comparacion-vendedores`);
                 const data = await response.json();
                 console.log('Comparación Vendedores Response:', data);
 
@@ -1087,9 +1376,7 @@
             content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
 
             try {
-                const response = await fetch(`${API_URL}/api/productos`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/productos`);
                 const data = await response.json();
 
                 if (response.ok) {
@@ -1123,10 +1410,9 @@
 
         async function createProducto(sku, nombre, precio) {
             try {
-                const response = await fetch(`${API_URL}/api/productos`, {
+                const response = await fetchWithAuth(`${API_URL}/api/productos`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -1138,15 +1424,23 @@
                 });
 
                 const data = await response.json();
+                console.log('Create Producto Response:', data);
 
                 if (response.ok) {
                     alert('✅ Producto creado exitosamente!');
                     loadProductos();
                 } else {
-                    alert(`❌ Error: ${data.error}`);
+                    // Manejar errores de validación
+                    if (data.errors && Array.isArray(data.errors)) {
+                        const errorMsg = data.errors.map(e => e.msg).join(', ');
+                        alert(`❌ Error de validación: ${errorMsg}`);
+                    } else {
+                        alert(`❌ Error: ${data.message || data.error || 'Error desconocido'}`);
+                    }
                 }
             } catch (error) {
-                alert('❌ Error de conexión');
+                console.error('Error en createProducto:', error);
+                alert(`❌ Error de conexión: ${error.message}`);
             }
         }
 
@@ -1164,10 +1458,9 @@
 
         async function asignarProducto(tendero_id, producto_id, stock_inicial, stock_minimo, stock_maximo) {
             try {
-                const response = await fetch(`${API_URL}/api/productos/asignar`, {
+                const response = await fetchWithAuth(`${API_URL}/api/productos/asignar`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -1197,9 +1490,7 @@
             content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
 
             try {
-                const response = await fetch(`${API_URL}/api/tenderos`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/tenderos`);
                 const data = await response.json();
 
                 if (response.ok) {
@@ -1227,9 +1518,7 @@
             content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
 
             try {
-                const response = await fetch(`${API_URL}/api/alertas`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/alertas`);
                 const data = await response.json();
 
                 if (response.ok) {
@@ -1266,9 +1555,7 @@
             content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
 
             try {
-                const response = await fetch(`${API_URL}/api/historial/${tenderoId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/historial/${tenderoId}`);
                 const data = await response.json();
                 console.log('Historial Response:', data);
 
@@ -1428,6 +1715,194 @@
             };
         }
 
+        // ========== EVOLUCIÓN HISTÓRICA ==========
+        let evolucionChart = null;
+        let evolucionData = null;
+
+        // Inicializar fechas por defecto (últimos 30 días)
+        function initFechasEvolucion() {
+            const hoy = new Date();
+            const hace30Dias = new Date(hoy);
+            hace30Dias.setDate(hace30Dias.getDate() - 30);
+            
+            document.getElementById('fechaFin').valueAsDate = hoy;
+            document.getElementById('fechaInicio').valueAsDate = hace30Dias;
+        }
+
+        function setUltimos30Dias() {
+            initFechasEvolucion();
+            loadEvolucion();
+        }
+
+        async function loadEvolucion() {
+            const fechaInicio = document.getElementById('fechaInicio').value;
+            const fechaFin = document.getElementById('fechaFin').value;
+            
+            if (!fechaInicio || !fechaFin) {
+                alert('❌ Por favor selecciona el rango de fechas');
+                return;
+            }
+
+            try {
+                const url = `${API_URL}/api/estadisticas/historico?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+                const response = await fetchWithAuth(url);
+                const data = await response.json();
+                console.log('Evolución Response:', data);
+
+                if (response.ok) {
+                    evolucionData = data;
+                    renderEvolucionChart(data);
+                    updateEvolucionInfo(data);
+                } else {
+                    alert(`❌ Error: ${data.message || data.error || 'Error desconocido'}`);
+                }
+            } catch (error) {
+                console.error('Error en loadEvolucion:', error);
+                alert(`❌ Error de conexión: ${error.message}`);
+            }
+        }
+
+        function renderEvolucionChart(data) {
+            const ctx = document.getElementById('chartEvolucion');
+            
+            // Preparar datos para Chart.js
+            const labels = data.data.map(d => {
+                const fecha = new Date(d.fecha);
+                return fecha.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
+            });
+            
+            const visitasData = data.data.map(d => d.visitas);
+            const ventasData = data.data.map(d => d.ventas);
+
+            // Destruir gráfica anterior si existe
+            if (evolucionChart) {
+                evolucionChart.destroy();
+            }
+
+            // Crear nueva gráfica
+            evolucionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '📍 Visitas',
+                            data: visitasData,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: '💰 Ventas',
+                            data: ventasData,
+                            borderColor: '#48bb78',
+                            backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                },
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0,
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function toggleSerie(serie) {
+            if (!evolucionChart) return;
+            
+            const datasetIndex = serie === 'visitas' ? 0 : 1;
+            const meta = evolucionChart.getDatasetMeta(datasetIndex);
+            meta.hidden = !meta.hidden;
+            evolucionChart.update();
+        }
+
+        function updateEvolucionInfo(data) {
+            const infoDiv = document.getElementById('evolucionInfo');
+            infoDiv.style.display = 'block';
+            
+            // Calcular totales
+            const totalVisitas = data.data.reduce((sum, d) => sum + d.visitas, 0);
+            const totalVentas = data.data.reduce((sum, d) => sum + d.ventas, 0);
+            const totalFacturado = data.data.reduce((sum, d) => sum + d.facturado, 0);
+            
+            // Formatear fechas
+            const fechaInicio = new Date(data.fecha_inicio).toLocaleDateString('es-CO');
+            const fechaFin = new Date(data.fecha_fin).toLocaleDateString('es-CO');
+            
+            // Actualizar información
+            document.getElementById('infoPeriodo').textContent = `${fechaInicio} - ${fechaFin} (${data.dias} días)`;
+            document.getElementById('infoTotalVisitas').textContent = totalVisitas;
+            document.getElementById('infoTotalVentas').textContent = totalVentas;
+            document.getElementById('infoFacturacion').textContent = `$${totalFacturado.toLocaleString('es-CO', {minimumFractionDigits: 2})}`;
+        }
+
         // ========== GM-9: GESTIÓN DE VENDEDORES ==========
         let zonasDisponibles = [];
 
@@ -1436,9 +1911,7 @@
             content.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
 
             try {
-                const response = await fetch(`${API_URL}/api/vendedores`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/vendedores`);
                 const data = await response.json();
                 console.log('Vendedores Response:', data);
 
@@ -1519,10 +1992,9 @@
 
         async function createVendedor(vendedorData) {
             try {
-                const response = await fetch(`${API_URL}/api/vendedores`, {
+                const response = await fetchWithAuth(`${API_URL}/api/vendedores`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(vendedorData)
@@ -1561,10 +2033,9 @@
 
         async function updateVendedor(id, updateData) {
             try {
-                const response = await fetch(`${API_URL}/api/vendedores/${id}`, {
+                const response = await fetchWithAuth(`${API_URL}/api/vendedores/${id}`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(updateData)
@@ -1587,9 +2058,8 @@
             if (!confirm(`¿Estás seguro de eliminar al vendedor "${nombre}"?`)) return;
 
             try {
-                const response = await fetch(`${API_URL}/api/vendedores/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const response = await fetchWithAuth(`${API_URL}/api/vendedores/${id}`, {
+                    method: 'DELETE'
                 });
 
                 const data = await response.json();
@@ -1618,10 +2088,9 @@
 
         async function asignarZonaVendedor(vendedorId, zona_id) {
             try {
-                const response = await fetch(`${API_URL}/api/vendedores/${vendedorId}/asignar-zona`, {
+                const response = await fetchWithAuth(`${API_URL}/api/vendedores/${vendedorId}/asignar-zona`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ zona_id })
@@ -1642,9 +2111,7 @@
 
         async function loadZonasForSelection() {
             try {
-                const response = await fetch(`${API_URL}/api/zonas`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/zonas`);
                 const data = await response.json();
                 
                 if (response.ok) {
@@ -1661,10 +2128,9 @@
             result.innerHTML = '<div class="loading"><div class="spinner"></div>Procesando...</div>';
 
             try {
-                const response = await fetch(`${API_URL}/api/visitas/checkin`, {
+                const response = await fetchWithAuth(`${API_URL}/api/visitas/checkin`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -1700,10 +2166,9 @@
             };
 
             try {
-                const response = await fetch(`${API_URL}/api/stock/registrar`, {
+                const response = await fetchWithAuth(`${API_URL}/api/stock/registrar`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(stockData)
@@ -1726,9 +2191,7 @@
 
         async function loadInventario() {
             try {
-                const response = await fetch(`${API_URL}/api/stock/inventario`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/stock/inventario`);
                 const data = await response.json();
 
                 const tbody = document.getElementById('inventarioBody');
@@ -1777,9 +2240,7 @@
         async function loadStockSelects() {
             try {
                 // Cargar tenderos
-                const tenderosRes = await fetch(`${API_URL}/api/tenderos`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const tenderosRes = await fetchWithAuth(`${API_URL}/api/tenderos`);
                 const tenderosData = await tenderosRes.json();
                 
                 const selectTendero = document.getElementById('stockTenderoId');
@@ -1794,9 +2255,7 @@
                 }
 
                 // Cargar productos
-                const productosRes = await fetch(`${API_URL}/api/productos`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const productosRes = await fetchWithAuth(`${API_URL}/api/productos`);
                 const productosData = await productosRes.json();
                 
                 const selectProducto = document.getElementById('stockProductoId');
@@ -1839,9 +2298,7 @@
 
             try {
                 console.log('Fetching historial para tendero:', tenderoId);
-                const response = await fetch(`${API_URL}/api/historial/${tenderoId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetchWithAuth(`${API_URL}/api/historial/${tenderoId}`);
                 const data = await response.json();
                 console.log('Historial Response:', data);
 
@@ -1931,6 +2388,17 @@
                 loadTenderosEnMapa();
             }
         }, 30000);
+        
+        // Event listener para formulario de recuperación
+        document.addEventListener('DOMContentLoaded', () => {
+            const recoverForm = document.getElementById('recoverForm');
+            if (recoverForm) {
+                recoverForm.addEventListener('submit', recoverPassword);
+            }
+        });
     </script>
+
+    <!-- Chart.js para gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </body>
 </html>

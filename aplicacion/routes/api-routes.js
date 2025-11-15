@@ -182,10 +182,12 @@ const recoverPassword = [
       const hashedPassword = await bcrypt.hash(new_password, 10);
 
       // Actualizar contraseña
-      await req.pool.query(
-        'UPDATE usuarios SET password_hash = $1 WHERE email = $2',
+      const updateResult = await req.pool.query(
+        'UPDATE usuarios SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE email = $2 RETURNING id, email',
         [hashedPassword, email]
       );
+
+      console.log('✅ Contraseña actualizada para:', updateResult.rows[0].email);
 
       res.json({ success: true, message: 'Contraseña actualizada exitosamente' });
     } catch (error) {
@@ -244,10 +246,10 @@ const createProducto = [
     }
 
     try {
-      // Verificar límite de 50 productos
+      // Verificar límite de 500 productos
       const count = await req.pool.query('SELECT COUNT(*) as total FROM productos WHERE activo = true');
-      if (parseInt(count.rows[0].total) >= 50) {
-        return res.status(400).json({ success: false, message: 'Límite de 50 productos alcanzado' });
+      if (parseInt(count.rows[0].total) >= 500) {
+        return res.status(400).json({ success: false, message: 'Límite de 500 productos alcanzado' });
       }
 
       const { sku, nombre, descripcion, categoria, precio_base } = req.body;
@@ -616,6 +618,51 @@ const getZonas = async (req, res) => {
   }
 };
 
+// GET /api/estadisticas/historico - Evolución de ventas y visitas (últimos 30 días)
+const getEvolucionHistorica = async (req, res) => {
+  try {
+    const { fecha_inicio, fecha_fin } = req.query;
+    
+    // Calcular fechas por defecto (últimos 30 días)
+    const fechaFin = fecha_fin || new Date().toISOString().split('T')[0];
+    const fechaInicio = fecha_inicio || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Consulta para ventas por día
+    const ventasQuery = await req.pool.query(
+      `SELECT 
+        DATE(v.fecha_visita) as fecha,
+        COUNT(DISTINCT v.id) as total_visitas,
+        COUNT(DISTINCT vn.id) as total_ventas,
+        COALESCE(SUM(vn.cantidad * vn.precio_venta), 0) as total_facturado
+      FROM visitas_vendedor v
+      LEFT JOIN ventas vn ON v.id = vn.visita_id
+      WHERE v.fecha_visita >= $1 AND v.fecha_visita <= $2
+      GROUP BY DATE(v.fecha_visita)
+      ORDER BY DATE(v.fecha_visita)`,
+      [fechaInicio, fechaFin]
+    );
+
+    // Procesar datos para la gráfica
+    const datos = ventasQuery.rows.map(row => ({
+      fecha: row.fecha,
+      visitas: parseInt(row.total_visitas),
+      ventas: parseInt(row.total_ventas),
+      facturado: parseFloat(row.total_facturado)
+    }));
+
+    res.json({
+      success: true,
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+      dias: datos.length,
+      data: datos
+    });
+  } catch (error) {
+    console.error('Error obteniendo evolución histórica:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   authenticateToken,
   registerUser,
@@ -634,5 +681,7 @@ module.exports = {
   updateVendedor,
   deleteVendedor,
   asignarZonaVendedor,
-  getZonas
+  getZonas,
+  // Estadísticas
+  getEvolucionHistorica
 };

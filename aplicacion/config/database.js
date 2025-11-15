@@ -6,6 +6,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'gemelos_digitales',
   user: process.env.DB_USER || 'admin',
   password: process.env.DB_PASS || 'admin123',
+  ssl: process.env.DB_HOST && process.env.DB_HOST.includes('supabase') ? { rejectUnauthorized: false } : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
@@ -15,9 +16,9 @@ const pool = new Pool({
 const verifyDatabase = async () => {
   try {
     const client = await pool.connect();
-    const result = await client.query('SELECT PostGIS_Version() as postgis_version');
-    console.log('✅ Conexión a PostgreSQL establecida');
-    console.log(`✅ PostGIS Version: ${result.rows[0].postgis_version}`);
+    // Simple ping para verificar conexión sin PostGIS
+    await client.query('SELECT 1');
+    console.log('✅ Conexión a Supabase establecida');
     client.release();
     return true;
   } catch (error) {

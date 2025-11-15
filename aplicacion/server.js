@@ -249,6 +249,9 @@ app.get('/api/dashboard/ventas-mes', apiRoutes.authenticateToken, apiRoutes2.get
 app.get('/api/dashboard/ventas-zona', apiRoutes.authenticateToken, apiRoutes2.getVentasPorZona);
 app.get('/api/dashboard/comparacion-vendedores', apiRoutes.authenticateToken, apiRoutes2.getComparacionVendedores);
 
+// ESTADÍSTICAS HISTÓRICAS
+app.get('/api/estadisticas/historico', apiRoutes.authenticateToken, apiRoutes.getEvolucionHistorica);
+
 // HISTORIAL Y VENTAS
 app.get('/api/historial/:tendero_id', apiRoutes.authenticateToken, apiRoutes2.getHistorialCompras);
 app.post('/api/ventas', apiRoutes.authenticateToken, apiRoutes2.registrarVenta);
@@ -261,6 +264,10 @@ app.get('/', (req, res) => {
 
 // Ruta para servir el dashboard completo
 app.get('/dashboard', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('ETag', Date.now().toString()); // Force new version each time
   res.sendFile('dashboard-completo.html', { root: '../' });
 });
 
