@@ -508,6 +508,254 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
   return R * c; // Distancia en metros
 }
 
+// =====================================================
+// PROGRAMACIÓN DE VISITAS - NUEVOS ENDPOINTS Andres
+// =====================================================
+
+// GET /api/visitas - Obtener visitas con filtros
+const getVisitas = async (req, res) => {
+    try {
+        const { estado, vendedor_id, fecha_desde, fecha_hasta } = req.query;
+        
+        let query = `
+            SELECT 
+                vv.*,
+                vend.nombre as vendedor_nombre,
+                vend.codigo as vendedor_codigo,
+                t.nombre as tendero_nombre,
+                t.direccion as tendero_direccion,
+                z.nombre as zona_nombre
+            FROM visitas_vendedor vv
+            JOIN vendedores vend ON vv.vendedor_id = vend.id
+            JOIN tenderos t ON vv.tendero_id = t.id
+            LEFT JOIN zonas z ON t.zona_id = z.id
+            WHERE 1=1
+        `;
+        
+        const params = [];
+        let paramCount = 0;
+
+        if (estado) {
+            paramCount++;
+            query += ` AND vv.estado = $${paramCount}`;
+            params.push(estado);
+        }
+
+        if (vendedor_id) {
+            paramCount++;
+            query += ` AND vv.vendedor_id = $${paramCount}`;
+            params.push(vendedor_id);
+        }
+
+        if (fecha_desde) {
+            paramCount++;
+            query += ` AND vv.fecha_visita >= $${paramCount}`;
+            params.push(fecha_desde);
+        }
+
+        if (fecha_hasta) {
+            paramCount++;
+            query += ` AND vv.fecha_visita <= $${paramCount}`;
+            params.push(fecha_hasta);
+        }
+
+        query += ` ORDER BY vv.fecha_visita DESC, vv.hora_entrada DESC`;
+
+        const result = await req.pool.query(query, params);
+
+        res.json({ 
+            success: true, 
+            data: result.rows,
+            total: result.rows.length
+        });
+    } catch (error) {
+        console.error('Error obteniendo visitas:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/visitas/programar - Programar nueva visita
+const programarVisita = [
+    body('vendedor_id').isInt().withMessage('vendedor_id es requerido'),
+    body('tendero_id').isInt().withMessage('tendero_id es requerido'),
+    body('fecha_visita').isDate().withMessage('fecha_visita es requerida'),
+    body('hora_entrada').notEmpty().withMessage('hora_entrada es requerida'),
+    
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ success: false, errors: errors.array() });
+        }
+
+        try {
+            const { vendedor_id, tendero_id, fecha_visita, hora_entrada, observaciones } = req.body;
+
+            // Verificar que el vendedor existe y está activo
+            const vendedor = await req.pool.query(
+                'SELECT id FROM vendedores WHERE id = $1 AND activo = true',
+                [vendedor_id]
+            );
+            if (vendedor.rowCount === 0) {
+                return res.status(400).json({ success: false, message: 'Vendedor no encontrado o inactivo' });
+            }
+
+            // Verificar que el tendero existe y está activo
+            const tendero = await req.pool.query(
+                'SELECT id FROM tenderos WHERE id = $1 AND activo = true',
+                [tendero_id]
+            );
+            if (tendero.rowCount === 0) {
+                return res.status(400).json({ success: false, message: 'Tendero no encontrado o inactivo' });
+            }
+
+            // Verificar que no haya una visita duplicada para el mismo día
+            const visitaExistente = await req.pool.query(
+                'SELECT id FROM visitas_vendedor WHERE vendedor_id = $1 AND tendero_id = $2 AND fecha_visita = $3 AND estado != $4',
+                [vendedor_id, tendero_id, fecha_visita, 'cancelada']
+            );
+            if (visitaExistente.rowCount > 0) {
+                return res.status(400).json({ success: false, message: 'Ya existe una visita programada para este tendero en la fecha seleccionada' });
+            }
+
+            const result = await req.pool.query(
+                `INSERT INTO visitas_vendedor 
+                 (vendedor_id, tendero_id, fecha_visita, hora_entrada, estado, observaciones) 
+                 VALUES ($1, $2, $3, $4, 'programada', $5) 
+                 RETURNING *`,
+                [vendedor_id, tendero_id, fecha_visita, hora_entrada, observaciones || null]
+            );
+
+            res.json({ 
+                success: true, 
+                message: 'Visita programada exitosamente',
+                data: result.rows[0]
+            });
+        } catch (error) {
+            console.error('Error programando visita:', error.message);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+];
+
+// PUT /api/visitas/:id/iniciar - Iniciar visita
+const iniciarVisita = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await req.pool.query(
+            `UPDATE visitas_vendedor 
+             SET estado = 'en_curso', hora_entrada = CURRENT_TIME 
+             WHERE id = $1 AND estado = 'programada' 
+             RETURNING *`,
+            [id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Visita no encontrada o no puede ser iniciada' });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Visita iniciada exitosamente',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error iniciando visita:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// PUT /api/visitas/:id/finalizar - Finalizar visita
+const finalizarVisita = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await req.pool.query(
+            `UPDATE visitas_vendedor 
+             SET estado = 'completada', hora_salida = CURRENT_TIME 
+             WHERE id = $1 AND estado = 'en_curso' 
+             RETURNING *`,
+            [id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Visita no encontrada o no puede ser finalizada' });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Visita finalizada exitosamente',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error finalizando visita:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// PUT /api/visitas/:id/cancelar - Cancelar visita
+const cancelarVisita = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { motivo } = req.body;
+
+        const result = await req.pool.query(
+            `UPDATE visitas_vendedor 
+             SET estado = 'cancelada', observaciones = COALESCE(observaciones || ' ', '') || $2 
+             WHERE id = $1 AND estado IN ('programada', 'en_curso') 
+             RETURNING *`,
+            [id, `[CANCELADA: ${motivo}]`]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Visita no encontrada o no puede ser cancelada' });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Visita cancelada exitosamente',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error cancelando visita:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// PUT /api/visitas/:id - Actualizar visita
+const updateVisita = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fecha_visita, hora_entrada, observaciones } = req.body;
+
+        const result = await req.pool.query(
+            `UPDATE visitas_vendedor 
+             SET fecha_visita = COALESCE($1, fecha_visita),
+                 hora_entrada = COALESCE($2, hora_entrada),
+                 observaciones = COALESCE($3, observaciones),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $4 AND estado = 'programada'
+             RETURNING *`,
+            [fecha_visita, hora_entrada, observaciones, id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Visita no encontrada o no puede ser actualizada' });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Visita actualizada exitosamente',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error actualizando visita:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+//--------------------------------------------------------------------------
+
+
 module.exports = {
   checkinVisita,
   checkoutVisita,
@@ -521,5 +769,12 @@ module.exports = {
   getComparacionVendedores,
   getHistorialCompras,
   registrarStock,
-  registrarVenta
+  registrarVenta,
+    //Andres:
+  getVisitas,
+  programarVisita,
+  iniciarVisita,
+  finalizarVisita,
+  cancelarVisita,
+  updateVisita
 };

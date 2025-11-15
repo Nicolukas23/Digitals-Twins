@@ -407,6 +407,8 @@
                 <button class="tab-btn" onclick="showTab('evolucion')">📈 Evolución</button>
                 <button class="tab-btn" onclick="showTab('alertas')">🔔 Alertas</button>
                 <button class="tab-btn" onclick="showTab('checkin')">✅ Check-in</button>
+                <!-- Andres -->
+                <button class="tab-btn" onclick="showTab('programacion')">📅 Programar Visitas</button>
             </div>
 
             <!-- Tab: Mapa -->
@@ -582,6 +584,114 @@
                 </div>
             </div>
 
+             <!-- Tab: Programación de Visitas Andres -->
+            <div id="tab-programacion" class="tab-content">
+                <div class="card">
+                    <h2>📅 Programación de Visitas</h2>
+                    
+                    <!-- Formulario para programar visita -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">➕ Programar Nueva Visita</h3>
+                        <form id="formProgramarVisita" onsubmit="programarVisita(event)">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Vendedor:</label>
+                                    <select id="programarVendedorId" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="">Seleccionar vendedor...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Tendero:</label>
+                                    <select id="programarTenderoId" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="">Seleccionar tendero...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Fecha de Visita:</label>
+                                    <input type="date" id="programarFecha" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Hora Estimada:</label>
+                                    <input type="time" id="programarHora" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Observaciones:</label>
+                                <textarea id="programarObservaciones" placeholder="Observaciones para la visita..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; min-height: 80px;"></textarea>
+                            </div>
+                            <button type="submit" class="btn-sm btn-success" style="padding: 10px 30px;">✅ Programar Visita</button>
+                        </form>
+                    </div>
+
+                    <!-- Filtros para las visitas -->
+                    <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">🔍 Filtros de Visitas</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Estado:</label>
+                                <select id="filtroEstado" onchange="cargarVisitasProgramadas()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <option value="">Todos los estados</option>
+                                    <option value="programada">📅 Programada</option>
+                                    <option value="en_curso">🟡 En Curso</option>
+                                    <option value="completada">✅ Completada</option>
+                                    <option value="cancelada">❌ Cancelada</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Vendedor:</label>
+                                <select id="filtroVendedor" onchange="cargarVisitasProgramadas()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <option value="">Todos los vendedores</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Fecha Desde:</label>
+                                <input type="date" id="filtroFechaDesde" onchange="cargarVisitasProgramadas()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Fecha Hasta:</label>
+                                <input type="date" id="filtroFechaHasta" onchange="cargarVisitasProgramadas()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de visitas programadas -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3>📋 Visitas Programadas</h3>
+                            <div>
+                                <button class="btn-sm btn-info" onclick="cargarVisitasProgramadas()" style="margin-right: 10px;">🔄 Actualizar</button>
+                                <button class="btn-sm btn-success" onclick="exportarVisitasPDF()">📄 Exportar PDF</button>
+                            </div>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: #667eea; color: white;">
+                                    <tr>
+                                        <th style="padding: 12px; text-align: left;">ID</th>
+                                        <th style="padding: 12px; text-align: left;">Vendedor</th>
+                                        <th style="padding: 12px; text-align: left;">Tendero</th>
+                                        <th style="padding: 12px; text-align: center;">Fecha</th>
+                                        <th style="padding: 12px; text-align: center;">Hora Entrada</th>
+                                        <th style="padding: 12px; text-align: center;">Hora Salida</th>
+                                        <th style="padding: 12px; text-align: center;">Estado</th>
+                                        <th style="padding: 12px; text-align: center;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="visitasProgramadasBody">
+                                    <tr>
+                                        <td colspan="8" style="text-align: center; padding: 20px; color: #999;">
+                                            Cargando visitas programadas...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- //////////////////////////////////////////////////////////////////////////////////////////////////////////// -->
+
+            
             <!-- Tab: Stock -->
             <div id="tab-stock" class="tab-content">
                 <div class="card">
@@ -1131,6 +1241,13 @@
                     initFechasEvolucion();
                     loadEvolucion();
                 }
+            }
+            
+            // Andres
+            // Load programacion data if programacion tab
+            if (tabName === 'programacion') {
+                cargarSelectsProgramacion();
+                cargarVisitasProgramadas();
             }
         }
 
@@ -2396,6 +2513,407 @@
                 recoverForm.addEventListener('submit', recoverPassword);
             }
         });
+
+        // Andres
+        
+        // ========== PROGRAMACIÓN DE VISITAS ==========
+        let visitasData = [];
+
+        // Cargar selects para el formulario
+        async function cargarSelectsProgramacion() {
+            try {
+                // Cargar vendedores
+                const vendedoresRes = await fetch(`${API_URL}/api/vendedores`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const vendedoresData = await vendedoresRes.json();
+                
+                const selectVendedor = document.getElementById('programarVendedorId');
+                const selectFiltroVendedor = document.getElementById('filtroVendedor');
+                
+                if (vendedoresData.success && vendedoresData.data) {
+                    const vendedoresOptions = vendedoresData.data
+                        .filter(v => v.activo)
+                        .map(v => `<option value="${v.id}">${v.nombre} - ${v.codigo}</option>`)
+                        .join('');
+                    
+                    selectVendedor.innerHTML = '<option value="">Seleccionar vendedor...</option>' + vendedoresOptions;
+                    selectFiltroVendedor.innerHTML = '<option value="">Todos los vendedores</option>' + vendedoresOptions;
+                }
+
+                // Cargar tenderos
+                const tenderosRes = await fetch(`${API_URL}/api/tenderos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const tenderosData = await tenderosRes.json();
+                
+                const selectTendero = document.getElementById('programarTenderoId');
+                
+                if (tenderosData.success && tenderosData.data) {
+                    const tenderosOptions = tenderosData.data
+                        .filter(t => t.activo)
+                        .map(t => `<option value="${t.id}">${t.nombre} - ${t.direccion}</option>`)
+                        .join('');
+                    
+                    selectTendero.innerHTML = '<option value="">Seleccionar tendero...</option>' + tenderosOptions;
+                }
+
+                // Establecer fecha mínima como hoy
+                const hoy = new Date().toISOString().split('T')[0];
+                document.getElementById('programarFecha').min = hoy;
+
+            } catch (error) {
+                console.error('Error cargando selects programación:', error);
+            }
+        }
+
+        // Programar nueva visita
+        async function programarVisita(event) {
+            event.preventDefault();
+            
+            const visitaData = {
+                vendedor_id: parseInt(document.getElementById('programarVendedorId').value),
+                tendero_id: parseInt(document.getElementById('programarTenderoId').value),
+                fecha_visita: document.getElementById('programarFecha').value,
+                hora_entrada: document.getElementById('programarHora').value + ':00',
+                observaciones: document.getElementById('programarObservaciones').value || null
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/visitas/programar`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(visitaData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Visita programada exitosamente');
+                    document.getElementById('formProgramarVisita').reset();
+                    cargarVisitasProgramadas();
+                } else {
+                    alert('❌ Error: ' + (data.message || 'Error al programar visita'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error de conexión');
+            }
+        }
+
+        // Cargar visitas programadas
+        async function cargarVisitasProgramadas() {
+            try {
+                const tbody = document.getElementById('visitasProgramadasBody');
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #999;">Cargando visitas...</td></tr>';
+
+                // Construir query string con filtros
+                const params = new URLSearchParams();
+                const estado = document.getElementById('filtroEstado').value;
+                const vendedorId = document.getElementById('filtroVendedor').value;
+                const fechaDesde = document.getElementById('filtroFechaDesde').value;
+                const fechaHasta = document.getElementById('filtroFechaHasta').value;
+
+                if (estado) params.append('estado', estado);
+                if (vendedorId) params.append('vendedor_id', vendedorId);
+                if (fechaDesde) params.append('fecha_desde', fechaDesde);
+                if (fechaHasta) params.append('fecha_hasta', fechaHasta);
+
+                const queryString = params.toString();
+                const url = queryString ? `${API_URL}/api/visitas?${queryString}` : `${API_URL}/api/visitas`;
+
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    visitasData = data.data;
+                    displayVisitasProgramadas(data.data);
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #dc3545;">Error al cargar visitas</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error cargando visitas:', error);
+                document.getElementById('visitasProgramadasBody').innerHTML = 
+                    '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #dc3545;">Error de conexión</td></tr>';
+            }
+        }
+
+        // Mostrar visitas en la tabla
+        function displayVisitasProgramadas(visitas) {
+            const tbody = document.getElementById('visitasProgramadasBody');
+            
+            if (!visitas || visitas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #999;">No hay visitas programadas</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = visitas.map(visita => {
+                // Determinar color y texto del estado
+                let estadoColor, estadoTexto, estadoIcon;
+                switch (visita.estado) {
+                    case 'programada':
+                        estadoColor = '#3b82f6';
+                        estadoTexto = '📅 Programada';
+                        estadoIcon = '📅';
+                        break;
+                    case 'en_curso':
+                        estadoColor = '#f59e0b';
+                        estadoTexto = '🟡 En Curso';
+                        estadoIcon = '🟡';
+                        break;
+                    case 'completada':
+                        estadoColor = '#10b981';
+                        estadoTexto = '✅ Completada';
+                        estadoIcon = '✅';
+                        break;
+                    case 'cancelada':
+                        estadoColor = '#ef4444';
+                        estadoTexto = '❌ Cancelada';
+                        estadoIcon = '❌';
+                        break;
+                    default:
+                        estadoColor = '#6b7280';
+                        estadoTexto = visita.estado;
+                        estadoIcon = '❓';
+                }
+
+                // Verificar si está atrasada
+                const fechaVisita = new Date(visita.fecha_visita);
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+                
+                const estaAtrasada = fechaVisita < hoy && visita.estado === 'programada';
+                const filaStyle = estaAtrasada ? 'background: #fef2f2;' : '';
+
+                return `
+                    <tr style="${filaStyle}">
+                        <td style="padding: 12px; font-weight: bold;">${visita.id}</td>
+                        <td style="padding: 12px;">${visita.vendedor_nombre}</td>
+                        <td style="padding: 12px;">${visita.tendero_nombre}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            ${new Date(visita.fecha_visita).toLocaleDateString('es-CO')}
+                            ${estaAtrasada ? '<br><span style="color: #dc2626; font-size: 11px;">⚠️ Atrasada</span>' : ''}
+                        </td>
+                        <td style="padding: 12px; text-align: center;">${visita.hora_entrada || '-'}</td>
+                        <td style="padding: 12px; text-align: center;">${visita.hora_salida || '-'}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <span style="background: ${estadoColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">
+                                ${estadoIcon} ${estadoTexto}
+                            </span>
+                        </td>
+                        <td style="padding: 12px; text-align: center;">
+                            ${visita.estado === 'programada' ? `
+                                <button class="btn-sm btn-success" onclick="iniciarVisita(${visita.id})" style="margin: 2px;">▶️ Iniciar</button>
+                                <button class="btn-sm btn-warning" onclick="editarVisita(${visita.id})" style="margin: 2px;">✏️ Editar</button>
+                            ` : ''}
+                            ${visita.estado === 'en_curso' ? `
+                                <button class="btn-sm btn-primary" onclick="finalizarVisita(${visita.id})" style="margin: 2px;">⏹️ Finalizar</button>
+                            ` : ''}
+                            ${visita.estado !== 'completada' && visita.estado !== 'cancelada' ? `
+                                <button class="btn-sm btn-danger" onclick="cancelarVisita(${visita.id})" style="margin: 2px;">❌ Cancelar</button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Funciones de acciones para visitas
+        async function iniciarVisita(visitaId) {
+            if (!confirm('¿Estás seguro de iniciar esta visita?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/visitas/${visitaId}/iniciar`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Visita iniciada exitosamente');
+                    cargarVisitasProgramadas();
+                } else {
+                    alert('❌ Error: ' + (data.message || 'Error al iniciar visita'));
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function finalizarVisita(visitaId) {
+            if (!confirm('¿Estás seguro de finalizar esta visita?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/visitas/${visitaId}/finalizar`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Visita finalizada exitosamente');
+                    cargarVisitasProgramadas();
+                } else {
+                    alert('❌ Error: ' + (data.message || 'Error al finalizar visita'));
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function cancelarVisita(visitaId) {
+            const motivo = prompt('Motivo de la cancelación:');
+            if (!motivo) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/visitas/${visitaId}/cancelar`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ motivo })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Visita cancelada exitosamente');
+                    cargarVisitasProgramadas();
+                } else {
+                    alert('❌ Error: ' + (data.message || 'Error al cancelar visita'));
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        async function editarVisita(visitaId) {
+            const nuevaFecha = prompt('Nueva fecha (YYYY-MM-DD):');
+            const nuevaHora = prompt('Nueva hora (HH:MM):');
+            
+            if (!nuevaFecha || !nuevaHora) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/visitas/${visitaId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fecha_visita: nuevaFecha,
+                        hora_entrada: nuevaHora + ':00'
+                    })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Visita actualizada exitosamente');
+                    cargarVisitasProgramadas();
+                } else {
+                    alert('❌ Error: ' + (data.message || 'Error al actualizar visita'));
+                }
+            } catch (error) {
+                alert('❌ Error de conexión');
+            }
+        }
+
+        // Exportar visitas a PDF
+        function exportarVisitasPDF() {
+            if (visitasData.length === 0) {
+                alert('❌ No hay datos para exportar');
+                return;
+            }
+
+            const fecha = new Date().toLocaleDateString('es-CO');
+            
+            let pdfContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Reporte de Visitas - ${fecha}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 40px; }
+                h1 { color: #667eea; text-align: center; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .summary { background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th { background: #667eea; color: white; padding: 12px; text-align: left; }
+                td { padding: 10px; border-bottom: 1px solid #ddd; }
+                tr:nth-child(even) { background: #f9f9f9; }
+                .estado { padding: 4px 12px; border-radius: 12px; font-size: 12px; color: white; }
+                .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>🌐 Gemelos Digitales</h1>
+                <h2>Reporte de Visitas Programadas</h2>
+                <p>Fecha de reporte: ${fecha} | Total: ${visitasData.length} visitas</p>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Vendedor</th>
+                        <th>Tendero</th>
+                        <th>Fecha</th>
+                        <th>Hora Entrada</th>
+                        <th>Hora Salida</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            visitasData.forEach(visita => {
+                let estadoColor, estadoTexto;
+                switch (visita.estado) {
+                    case 'programada': estadoColor = '#3b82f6'; estadoTexto = 'Programada'; break;
+                    case 'en_curso': estadoColor = '#f59e0b'; estadoTexto = 'En Curso'; break;
+                    case 'completada': estadoColor = '#10b981'; estadoTexto = 'Completada'; break;
+                    case 'cancelada': estadoColor = '#ef4444'; estadoTexto = 'Cancelada'; break;
+                    default: estadoColor = '#6b7280'; estadoTexto = visita.estado;
+                }
+
+                pdfContent += `
+                    <tr>
+                        <td>${visita.id}</td>
+                        <td>${visita.vendedor_nombre}</td>
+                        <td>${visita.tendero_nombre}</td>
+                        <td>${new Date(visita.fecha_visita).toLocaleDateString('es-CO')}</td>
+                        <td>${visita.hora_entrada || '-'}</td>
+                        <td>${visita.hora_salida || '-'}</td>
+                        <td><span class="estado" style="background: ${estadoColor};">${estadoTexto}</span></td>
+                    </tr>`;
+            });
+
+            pdfContent += `
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <p>Documento generado automáticamente por Gemelos Digitales</p>
+                <p>${new Date().toLocaleString('es-CO')}</p>
+            </div>
+        </body>
+        </html>`;
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(pdfContent);
+            printWindow.document.close();
+            
+            printWindow.onload = function() {
+                printWindow.print();
+            };
+        }
+//------------------------------------------------------------------------
     </script>
 
     <!-- Chart.js para gráficas -->
