@@ -253,6 +253,14 @@ app.get('/api/dashboard/comparacion-vendedores', apiRoutes.authenticateToken, ap
 app.get('/api/historial/:tendero_id', apiRoutes.authenticateToken, apiRoutes2.getHistorialCompras);
 app.post('/api/ventas', apiRoutes.authenticateToken, apiRoutes2.registrarVenta);
 
+// VISITAS - PROGRAMACIÓN - Andres
+app.get('/api/visitas', apiRoutes.authenticateToken, apiRoutes2.getVisitas);
+app.post('/api/visitas/programar', apiRoutes.authenticateToken, apiRoutes2.programarVisita);
+app.put('/api/visitas/:id/iniciar', apiRoutes.authenticateToken, apiRoutes2.iniciarVisita);
+app.put('/api/visitas/:id/finalizar', apiRoutes.authenticateToken, apiRoutes2.finalizarVisita);
+app.put('/api/visitas/:id/cancelar', apiRoutes.authenticateToken, apiRoutes2.cancelarVisita);
+app.put('/api/visitas/:id', apiRoutes.authenticateToken, apiRoutes2.updateVisita);
+
 
 // Ruta principal - Redireccionar al dashboard
 app.get('/', (req, res) => {
